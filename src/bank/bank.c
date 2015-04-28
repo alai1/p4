@@ -4,6 +4,35 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+void tokenize_command(char *str, char **argumentsOut){
+char *  p    = strtok (str, " ");
+int n_spaces = 0, i;
+
+/* split string and append tokens to 'argumentsOut' */
+
+while (p) {
+  argumentsOut = realloc (argumentsOut, sizeof (char*) * ++n_spaces);
+
+  if (argumentsOut == NULL)
+    exit (-1); /* memory allocation failed */
+
+  argumentsOut[n_spaces-1] = p;
+
+  p = strtok (NULL, " ");
+}
+
+/* realloc one extra element for the last NULL */
+
+argumentsOut = realloc (argumentsOut, sizeof (char*) * (n_spaces+1));
+argumentsOut[n_spaces] = 0;
+
+/* print the result */
+
+for (i = 0; i < (n_spaces); ++i)
+  printf ("argumentsOut[%d] = %s\n", i, argumentsOut[i]);
+
+}
+
 Bank* bank_create()
 {
     Bank *bank = (Bank*) malloc(sizeof(Bank));
@@ -57,7 +86,10 @@ ssize_t bank_recv(Bank *bank, char *data, size_t max_data_len)
 
 void bank_process_local_command(Bank *bank, char *command, size_t len)
 {
-    // TODO: Implement the bank's local commands
+    char **command_tokens = "";
+    tokenize_command(command, &command_tokens);
+
+    printf("%s\n", command_tokens[2]);
 }
 
 void bank_process_remote_command(Bank *bank, char *command, size_t len)
@@ -78,4 +110,7 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
     printf("Received the following:\n");
     fputs(command, stdout);
 	*/
+
+
+
 }

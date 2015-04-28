@@ -48,21 +48,11 @@ if( access( bankFileName, F_OK ) != -1 || access( atmFileName, F_OK ) != -1 ) {
 
  //We're using EVP_aes_256_gcm
 unsigned char key[32] = "";
-printf("size of key: %d\n", sizeof key);
+
 if (!RAND_bytes(key, sizeof key)) {
     printf("Error creating initialization files\n");
     return 64;
 }
-printf("size of key: %d\n", sizeof key);
-printf("%c\n", key[2]);
-
-int counter = 0;
-while (counter < sizeof key)
-{
-     printf("%02X",(int)key[counter]);
-     counter++;
-}
-printf("%s\n", key);
 
 
 bankFile = fopen(bankFileName, "w");
