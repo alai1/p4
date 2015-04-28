@@ -4,6 +4,35 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+int tokenize_command(char *str, char ***argsOut){
+char *  p    = strtok (str, " ");
+int n_spaces = 0, i;
+
+char **argumentsOut = NULL;
+/* split string and append tokens to 'argumentsOut' */
+
+while (p) {
+  argumentsOut = realloc (argumentsOut, sizeof (char*) * ++n_spaces);
+
+  if (argumentsOut == NULL)
+    exit (-1); /* memory allocation failed */
+
+  argumentsOut[n_spaces-1] = p;
+
+  p = strtok (NULL, " ");
+}
+
+/* realloc one extra element for the last NULL */
+
+argumentsOut = realloc (argumentsOut, sizeof (char*) * (n_spaces+1));
+argumentsOut[n_spaces] = 0;
+
+*argsOut = argumentsOut;
+
+return n_spaces;
+
+}
+
 ATM* atm_create()
 {
     ATM *atm = (ATM*) malloc(sizeof(ATM));
@@ -57,6 +86,9 @@ ssize_t atm_recv(ATM *atm, char *data, size_t max_data_len)
 
 void atm_process_command(ATM *atm, char *command)
 {
+    
+
+
     // TODO: Implement the ATM's side of the ATM-bank protocol
 
 	/*
