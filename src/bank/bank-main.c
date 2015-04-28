@@ -19,10 +19,11 @@ int main(int argc, char**argv)
    char sendline[1000];
    char recvline[1000];
 
+    unsigned char * key = NULL;
+
    Bank *bank = bank_create();
 
     FILE *bankFile;
-    char * bankFileText = NULL;
     char * fileExtension;
     long length = 0;
 
@@ -37,10 +38,10 @@ int main(int argc, char**argv)
               fseek (bankFile, 0, SEEK_END);
               length = ftell (bankFile);
               fseek (bankFile, 0, SEEK_SET);
-              bankFileText = malloc (length);
-              if (bankFileText)
+              key = malloc (length);
+              if (key)
               {
-                fread (bankFileText, 1, length, bankFile);
+                fread (key, 1, length, bankFile);
               }
               fclose (bankFile);
         } else {
@@ -51,6 +52,8 @@ int main(int argc, char**argv)
 
    printf("%s", prompt);
    fflush(stdout);
+
+   bank->key = key;
 
    while(1)
    {

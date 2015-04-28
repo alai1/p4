@@ -28,7 +28,7 @@ typedef struct _Bank
     struct sockaddr_in bank_addr;
 
     // Protocol state
-    // TODO add more, as needed
+    unsigned char *key;
 } Bank;
 
 Bank* bank_create();
