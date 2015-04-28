@@ -19,7 +19,7 @@ bin/router : router/router-main.c router/router.c
 	${CC} ${CFLAGS} ${LIBS} router/router.c router/router-main.c -o bin/router
 
 bin : init.c
-	${CC} ${CFLAGS} ${LIBS} init.c -o initr
+	${CC} ${CFLAGS} init.c -o init $(LIBS)
 
 test : util/list.c util/list_example.c util/hash_table.c util/hash_table_example.c
 	${CC} ${CFLAGS} ${LIBS} util/list.c util/list_example.c -o bin/list-test
