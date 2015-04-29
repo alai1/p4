@@ -10,13 +10,13 @@ endif
 all: bin/atm bin/bank bin/router bin
 
 bin/atm : atm/atm-main.c atm/atm.c
-	${CC} ${CFLAGS} ${LIBS} atm/atm.c atm/atm-main.c -o bin/atm
+	${CC} ${CFLAGS} atm/atm.c atm/atm-main.c -o bin/atm ${LIBS}
 
 bin/bank : bank/bank-main.c bank/bank.c
-	${CC} ${CFLAGS} ${LIBS} bank/bank.c bank/bank-main.c -o bin/bank
+	${CC} ${CFLAGS} bank/bank.c bank/bank-main.c -o bin/bank ${LIBS}
 
 bin/router : router/router-main.c router/router.c
-	${CC} ${CFLAGS} ${LIBS} router/router.c router/router-main.c -o bin/router
+	${CC} ${CFLAGS} router/router.c router/router-main.c -o bin/router ${LIBS}
 
 bin : init.c
 	${CC} ${CFLAGS} init.c -o init $(LIBS)

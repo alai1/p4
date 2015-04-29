@@ -6,7 +6,7 @@
 
 int tokenize_command(char *str, char ***argsOut){
 char *  p    = strtok (str, " ");
-int n_spaces = 0, i;
+int n_spaces = 0;
 
 char **argumentsOut = NULL;
 /* split string and append tokens to 'argumentsOut' */
@@ -96,8 +96,8 @@ void atm_process_command(ATM *atm, char *command)
 	 * user's command to the bank, receives a message from the
 	 * bank, and then prints it to stdout.
 	 */
-
-	/*
+    printf("No ATM implementation\n");
+	
     char recvline[10000];
     int n;
 
@@ -105,5 +105,5 @@ void atm_process_command(ATM *atm, char *command)
     n = atm_recv(atm,recvline,10000);
     recvline[n]=0;
     fputs(recvline,stdout);
-	*/
+	
 }

@@ -19,7 +19,7 @@ int main(int argc, char**argv)
    char sendline[1000];
    char recvline[1000];
 
-    unsigned char * key = NULL;
+   unsigned char * key = NULL;
 
    Bank *bank = bank_create();
 

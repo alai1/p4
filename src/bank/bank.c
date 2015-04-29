@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <regex.h>
+#include <openssl/evp.h>
+#include <openssl/aes.h>
+#include <openssl/rand.h>
 
 int compare_str_to_regex(char* str, const char *pattern){
     regex_t regex;
@@ -167,14 +170,14 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
 	 * it back to the ATM before printing it to stdout.
 	 */
 
-	/*
+	
     char sendline[1000];
     command[len]=0;
     sprintf(sendline, "Bank got: %s", command);
     bank_send(bank, sendline, strlen(sendline));
     printf("Received the following:\n");
     fputs(command, stdout);
-	*/
+	
 
 
 
