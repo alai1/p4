@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -fno-stack-protector -w -Wall -Iutil -Iatm -Ibank -Irouter -I.
+CFLAGS = -fno-stack-protector -Wno-deprecated -Wall -Iutil -Iatm -Ibank -Irouter -I.
 LIBS = -lcrypto
 
 UNAME := $(shell uname)

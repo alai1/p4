@@ -37,8 +37,20 @@ int compare_str_to_regex(char* str, const char *pattern){
     }
 }
 
-int tokenize_command(char *str, char ***argsOut){
-char *  p    = strtok (str, " ");
+int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, unsigned char **decrypted){
+
+    char **msg_parts = "";
+    int num_msg_parts = 0;
+    num_msg_parts = split_string(composed_message, ";", &msg_parts);
+
+    char *expected_hash = msg_parts[0];
+    char *ciphertext = msg_parts[1];
+    char *iv = msg_parts[2];
+
+}
+
+int split_string(char *str, const char* separator, char ***argsOut){
+char *  p    = strtok (str, separator);
 int n_spaces = 0;
 
 char **argumentsOut = NULL;
@@ -52,7 +64,7 @@ while (p) {
 
   argumentsOut[n_spaces-1] = p;
 
-  p = strtok (NULL, " ");
+  p = strtok (NULL, separator);
 }
 
 /* realloc one extra element for the last NULL */
@@ -63,6 +75,12 @@ argumentsOut[n_spaces] = 0;
 *argsOut = argumentsOut;
 
 return n_spaces;
+
+}
+
+int tokenize_command(char *str, char ***argsOut){
+
+    return split_string(str, " ", argsOut);
 
 }
 

@@ -7,66 +7,154 @@
 #include <openssl/aes.h>
 #include <openssl/rand.h>
 
-//#define     EVP_CTRL_GCM_SET_IVLEN      0x9
-//#define     EVP_CTRL_GCM_GET_TAG        0x10
 
-
-int encrypt_stuff(unsigned char *plaintext, int plaintext_len, unsigned char *aad,
-    int aad_len, unsigned char *key, unsigned char *iv,
-    unsigned char *ciphertext, unsigned char *tag)
+int encrypt_stuff(unsigned char *plaintext, int plaintext_len, unsigned char *key,
+  unsigned char *iv, unsigned char *ciphertext)
 {
-    EVP_CIPHER_CTX *ctx;
+  printf("ctx\n");
+  EVP_CIPHER_CTX *ctx;
 
-    int len;
+  int len = 0;
 
-    int ciphertext_len;
+  int ciphertext_len = 0;
 
+  /* Create and initialise the context */
+  if(!(ctx = EVP_CIPHER_CTX_new())) printf("context initialization failed\n");
+ 
+  /* Initialise the encryption operation. IMPORTANT - ensure you use a key
+   * and IV size appropriate for your cipher
+   * In this example we are using 256 bit AES (i.e. a 256 bit key). The
+   * IV size for *most* modes is the same as the block size. For AES this
+   * is 128 bits */
+  
+  if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv))
+    printf("encryption operation initialization failed\n");
 
-    /* Create and initialise the context */
-    if(!(ctx = EVP_CIPHER_CTX_new())) handleErrors();
+  /* Provide the message to be encrypted, and obtain the encrypted output.
+   * EVP_EncryptUpdate can be called multiple times if necessary
+   */
+  
+  if(1 != EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len))
+    printf("encryptupdate failed\n");
+  ciphertext_len = len;
 
-    /* Initialise the encryption operation. */
-    if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL))
-        handleErrors();
+  /* Finalise the encryption. Further ciphertext bytes may be written at
+   * this stage.
+   */
+  if(1 != EVP_EncryptFinal_ex(ctx, ciphertext + len, &len)) printf("encrypt update failed\n");
 
-    /* Set IV length if default 12 bytes (96 bits) is not appropriate */
-    if(1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, 16, NULL))
-        handleErrors();
+  ciphertext_len += len;
 
-    /* Initialise key and IV */
-    if(1 != EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv)) handleErrors();
+  /* Clean up */
+  EVP_CIPHER_CTX_free(ctx);
 
-    /* Provide any AAD data. This can be called zero or more times as
-     * required
-     */
-    if(1 != EVP_EncryptUpdate(ctx, NULL, &len, aad, aad_len))
-        handleErrors();
-
-    /* Provide the message to be encrypted, and obtain the encrypted output.
-     * EVP_EncryptUpdate can be called multiple times if necessary
-     */
-    if(1 != EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len))
-        handleErrors();
-    ciphertext_len = len;
-
-    /* Finalise the encryption. Normally ciphertext bytes may be written at
-     * this stage, but this does not occur in GCM mode
-     */
-    if(1 != EVP_EncryptFinal_ex(ctx, ciphertext + len, &len)) handleErrors();
-    ciphertext_len += len;
-
-    /* Get the tag */
-    if(1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, tag))
-        handleErrors();
-
-    /* Clean up */
-    EVP_CIPHER_CTX_free(ctx);
-
-    return ciphertext_len;
+  return ciphertext_len;
 }
 
-int tokenize_command(char *str, char ***argsOut){
-char *  p    = strtok (str, " ");
+int decrypt_stuff(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
+  unsigned char *iv, unsigned char *plaintext)
+{
+  EVP_CIPHER_CTX *ctx;
+
+  int len;
+
+  int plaintext_len;
+
+  /* Create and initialise the context */
+  if(!(ctx = EVP_CIPHER_CTX_new())) printf("context initialization failed\n");
+
+  /* Initialise the decryption operation. IMPORTANT - ensure you use a key
+   * and IV size appropriate for your cipher
+   * In this example we are using 256 bit AES (i.e. a 256 bit key). The
+   * IV size for *most* modes is the same as the block size. For AES this
+   * is 128 bits */
+  if(1 != EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv))
+    printf("decryption operation initialization failed\n");
+
+  /* Provide the message to be decrypted, and obtain the plaintext output.
+   * EVP_DecryptUpdate can be called multiple times if necessary
+   */
+  if(1 != EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertext_len))
+    printf("decryptupdate failed\n");
+  plaintext_len = len;
+
+  /* Finalise the decryption. Further plaintext bytes may be written at
+   * this stage.
+   */
+  if(1 != EVP_DecryptFinal_ex(ctx, plaintext + len, &len)) printf("decrypt update failed\n");
+  plaintext_len += len;
+
+  /* Clean up */
+  EVP_CIPHER_CTX_free(ctx);
+
+  return plaintext_len;
+}
+
+int compose_message(unsigned char *plaintext, int plaintext_len, unsigned char *key,
+  unsigned char *iv, unsigned char **composed_message){
+
+    unsigned char ciphertext[2048] = "\0";
+    int ciphertext_len = encrypt_stuff(plaintext, plaintext_len, key, iv, ciphertext);
+
+
+    /*HMAC(AES_256_CBC(p,k,iv);iv);AES_256_CBC(p,k,iv);iv
+    
+     \____________32_____________/1\__ciphertext_len_/1\32      
+
+    */
+    //unsigned char composed[32 + 1 + ciphertext_len + 1 + 32];
+    unsigned char* composed;
+
+    unsigned char* hmac;
+
+    char * data = NULL;
+    asprintf(&data, "%s%s%s", ciphertext, ";", iv);
+
+    hmac = HMAC(EVP_sha256(), key, 32, data, strlen(data), NULL, NULL);
+
+    printf("data to hmac:%s\n", data);
+    printf("hmac(data):%s\n", hmac);
+
+    asprintf(&composed, "%s%s%s",hmac,";",data);
+
+    *composed_message = composed;
+
+    return strlen(*composed_message);
+
+}
+
+int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, unsigned char **decrypted){
+
+    char **msg_parts = "";
+    int num_msg_parts = 0;
+    num_msg_parts = split_string(composed_message, ";", &msg_parts);
+
+    char *expected_hmac = msg_parts[0];
+    char *ciphertext = msg_parts[1];
+    char *iv = msg_parts[2];
+    
+    unsigned char *computed_hmac;
+    char * cipher_semi_iv = NULL;
+    asprintf(&cipher_semi_iv, "%s%s%s", ciphertext, ";", iv);
+    computed_hmac = HMAC(EVP_sha256(), key, 32, cipher_semi_iv, strlen(cipher_semi_iv), NULL, NULL);
+
+    if(strcmp(computed_hmac,expected_hmac) != 0){
+        return -1;
+    }
+
+
+    unsigned char plaintext[2048] = "\0";
+    int plaintext_len = decrypt_stuff(ciphertext, strlen(ciphertext), key, iv, plaintext);
+
+    plaintext[plaintext_len] = '\0';
+
+    *decrypted = plaintext;
+    return 1;
+}
+
+
+int split_string(char *str, const char* separator, char ***argsOut){
+char *  p    = strtok (str, separator);
 int n_spaces = 0;
 
 char **argumentsOut = NULL;
@@ -80,7 +168,7 @@ while (p) {
 
   argumentsOut[n_spaces-1] = p;
 
-  p = strtok (NULL, " ");
+  p = strtok (NULL, separator);
 }
 
 /* realloc one extra element for the last NULL */
@@ -157,6 +245,7 @@ void atm_process_command(ATM *atm, char *command)
 	 * user's command to the bank, receives a message from the
 	 * bank, and then prints it to stdout.
 	 */
+
     printf("No ATM implementation\n");
 	
      //We're using EVP_aes_256_gcm
@@ -166,20 +255,19 @@ void atm_process_command(ATM *atm, char *command)
         printf("Error creating IV\n");
     }
 
-    unsigned char* aad;
-    int aad_len, plaintext_len;
-    unsigned char *key;
-    unsigned char *ciphertext;
-    unsigned char *tag;
-
     char recvline[10000];
     int n;
 
+    unsigned char* composed_message;
+    unsigned char* decomposed_message;
 
-    encrypt_stuff(command, strlen(command), iv, strlen(iv), atm->key, iv, ciphertext, tag);
+    int cml = 0;
+    cml = compose_message(command, strlen(command), atm->key, iv, &composed_message);
 
-    printf("plaintext: %s\nplaintext length: %s\niv: %s\niv len: %s\nciphertext: %s\ntag: %s\n", 
-        command, strlen(command), iv, strlen(iv), atm->key, iv, ciphertext, tag);
+    printf("composed_message: %s\ncml: %d\n", composed_message, cml);
+    verify_and_decrypt_msg(composed_message, atm->key, &decomposed_message);
+
+    printf("decomposed_message: %s\n", decomposed_message);
 
     atm_send(atm, command, strlen(command));
     n = atm_recv(atm,recvline,10000);
