@@ -66,6 +66,56 @@ ssize_t bank_recv(Bank *bank, char *data, size_t max_data_len)
     return recvfrom(bank->sockfd, data, max_data_len, 0, NULL, NULL);
 }
 
+/**
+* The bank sends encrypted response and expects no further communication
+*/
+void bank_respond_encrypted(Bank *bank, unsigned char* msg_in)
+{
+    char recvline[10000];
+    int n;
+
+    unsigned char* composed_message;
+
+    unsigned char iv[16] = "";
+
+    if (!RAND_bytes(iv, sizeof iv)) {
+        printf("Error creating IV\n");
+    }
+
+    compose_message(msg_in, strlen(msg_in), bank->key, iv, &composed_message);
+
+    ////printf("bank ready to send:%s\n", composed_message);
+
+    bank_send(bank, composed_message, strlen(composed_message));
+}
+
+void bank_send_rcv_encrypted(Bank *bank, unsigned char* msg_in, unsigned char** received)
+{
+    char recvline[10000];
+    int n;
+
+    unsigned char* composed_message;
+
+    unsigned char iv[16] = "";
+
+    if (!RAND_bytes(iv, sizeof iv)) {
+        printf("Error creating IV\n");
+    }
+
+    compose_message(msg_in, strlen(msg_in), bank->key, iv, &composed_message);
+
+    ////printf("bank ready to send:%s\n", composed_message);
+
+    bank_send(bank, composed_message, strlen(composed_message));
+
+    ////printf("bank sent:%s\n", composed_message);
+    n = bank_recv(bank,recvline,10000);
+    recvline[n]=0;
+    ////printf("bank received %d bytes\n", n);
+    ////printf("bank recvline:%s\n", recvline);
+    *received = recvline;
+}
+
 void bank_process_local_command(Bank *bank, char *command, size_t len)
 {
 
@@ -100,18 +150,12 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
 	 * it back to the ATM before printing it to stdout.
 	 */
 
-	/*
-    char sendline[1000];
-    command[len]=0;
-    bank_send(bank, sendline, strlen(sendline));
-    */
-
-
+    unsigned char* received_message;
     unsigned char* decrypted_msg;
     if(verify_and_decrypt_msg(command, bank->key, &decrypted_msg) == 1){
-        printf("received:%s\ndecrypted successfully:%s", command, decrypted_msg);
+        ////printf("received:%s\ndecrypted successfully:%s", command, decrypted_msg);
     } else {
-        printf("hmacs don't match\n");
+        ////printf("hmacs don't match\n");
     }
 	
     char copy_of_dmsg[strlen(decrypted_msg)+1];
@@ -133,6 +177,15 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
     } else if(strcmp("balance",command_tokens[0]) == 0){
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
             printf("%s %s \n", command_tokens[0], command_tokens[1]);
+        } else {
+            printf("Usage:  balance <user-name>\n");
+        }
+    } else if(strcmp("begin-session",command_tokens[0]) == 0){
+        if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
+            if(hash_table_find(bank->ht, command_tokens[0]) == NULL){
+                char * cipher_semi_iv = NULL;
+                bank_respond_encrypted(bank, "No such user");
+            }
         } else {
             printf("Usage:  balance <user-name>\n");
         }

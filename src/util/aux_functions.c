@@ -71,7 +71,7 @@ return n_spaces;
 int encrypt_stuff(unsigned char *plaintext, int plaintext_len, unsigned char *key,
   unsigned char *iv, unsigned char *ciphertext)
 {
-  printf("ctx\n");
+
   EVP_CIPHER_CTX *ctx;
 
   int len = 0;
@@ -153,14 +153,14 @@ int decrypt_stuff(unsigned char *ciphertext, int ciphertext_len, unsigned char *
 int compose_message(unsigned char *plaintext, int plaintext_len, unsigned char *key,
   unsigned char *iv, unsigned char **composed_message){
 
-    printf("plaintext to encrypt: %s\n", plaintext);
+    ////printf("plaintext to encrypt: %s\n", plaintext);
 
     unsigned char ciphertext[2048] = "\0";
     int ciphertext_len = encrypt_stuff(plaintext, plaintext_len, key, iv, ciphertext);
 
  	ciphertext[ciphertext_len] = '\0';
 
-    printf("ciphertext: %s\n", ciphertext);
+    ////printf("ciphertext: %s\n", ciphertext);
 
     /*HMAC(AES_256_CBC(p,k,iv);iv);AES_256_CBC(p,k,iv);iv
     
@@ -175,23 +175,23 @@ int compose_message(unsigned char *plaintext, int plaintext_len, unsigned char *
     char * data = NULL;
     asprintf(&data, "%s%s%s", ciphertext, "POOPNUGGET", iv);
 
-    printf("cipher semi iv: %s\n", data);
+    ////printf("cipher semi iv: %s\n", data);
 
     unsigned char hmac[32] = "\0";
     int iLen;
 
-    printf("using key:%s\n", key);
+    ////printf("using key:%s\n", key);
     HMAC(EVP_sha256(), key, 32, data, strlen(data), hmac, &iLen);
 
     hmac[iLen] = '\0';
 
-    printf("hmac(cipher semi iv):%s\n", hmac);
+    ////printf("hmac(cipher semi iv):%s\n", hmac);
 
     asprintf(&composed, "%s%s%s",hmac,"POOPNUGGET",data);
 
     *composed_message = composed;
 
-    printf("composed message:%s\n", *composed_message);
+    ////printf("composed message:%s\n", *composed_message);
 
     return strlen(*composed_message);
 
@@ -199,7 +199,7 @@ int compose_message(unsigned char *plaintext, int plaintext_len, unsigned char *
 
 int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, unsigned char **decrypted){
 
-    printf("composed_message: %s\n", composed_message);
+    ////printf("composed_message: %s\n", composed_message);
 
     char **msg_parts = "";
     int num_msg_parts = 0;
@@ -209,29 +209,29 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
     char *ciphertext = msg_parts[1];
     char *iv = msg_parts[2];
 
-    printf("expected_hmac: %s\n", expected_hmac);
-    printf("ciphertext: %s\n", ciphertext);
-    printf("iv: %s\n", iv);
+    ////printf("expected_hmac: %s\n", expected_hmac);
+    ////printf("ciphertext: %s\n", ciphertext);
+    ////printf("iv: %s\n", iv);
     
     char * cipher_semi_iv = NULL;
     asprintf(&cipher_semi_iv, "%s%s%s", ciphertext, "POOPNUGGET", iv);
 
-    printf("cipher_semi_iv: %s\n", cipher_semi_iv);
+    ////printf("cipher_semi_iv: %s\n", cipher_semi_iv);
 
 
 	char someThingIsSeverelyBrokenInMemoryDontDelete[255] = "";
 
     unsigned char computed_hmac[32] = "\0";
     int iLen;
-    printf("using key:%s\n", key);
+    ////printf("using key:%s\n", key);
     HMAC(EVP_sha256(), key, 32, cipher_semi_iv, strlen(cipher_semi_iv), computed_hmac, &iLen);
 
     computed_hmac[iLen] = '\0';
 
-    printf("computed_hmac: %s\n", computed_hmac);
+    ////printf("computed_hmac: %s\n", computed_hmac);
 
     if(strcmp(computed_hmac,expected_hmac) != 0){
-        printf("verify and decrypt fail! expected %s doesn't match computed_hmac %sfuck!\n", expected_hmac, computed_hmac);
+        ////printf("verify and decrypt fail! expected %s doesn't match computed_hmac %sfuck!\n", expected_hmac, computed_hmac);
         return -1;
     }
 
@@ -240,10 +240,9 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
     int plaintext_len = decrypt_stuff(ciphertext, strlen(ciphertext), key, iv, plaintext);
 
     plaintext[plaintext_len] = '\0';
+    
+    *decrypted = plaintext;
 
-    printf("plaintext:%s\n", plaintext);
-
-    *decrypted = plaintext[0];
     return 1;
 }
 

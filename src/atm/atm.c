@@ -68,7 +68,7 @@ ssize_t atm_recv(ATM *atm, char *data, size_t max_data_len)
     return recvfrom(atm->sockfd, data, max_data_len, 0, NULL, NULL);
 }
 
-void atm_send_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** received)
+void atm_send_rcv_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** received)
 {
     char recvline[10000];
     int n;
@@ -83,15 +83,15 @@ void atm_send_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** receive
 
     compose_message(msg_in, strlen(msg_in), atm->key, iv, &composed_message);
 
-    printf("ready to send:%s\n", composed_message);
+    ////printf("atm ready to send:%s\n", composed_message);
 
     atm_send(atm, composed_message, strlen(composed_message));
 
-    printf("sent:%s\n", composed_message);
+    ////printf("atm sent:%s\n", composed_message);
     n = atm_recv(atm,recvline,10000);
     recvline[n]=0;
-    printf("received %d bytes\n", n);
-    printf("recvline:%s\n", recvline);
+    ////printf("atm received %d bytes\n", n);
+    ////printf("atm recvline:%s\n", recvline);
     *received = recvline;
 }
 
@@ -113,15 +113,15 @@ void atm_process_command(ATM *atm, char *command)
 
     if(strcmp("begin-session",command_tokens[0]) == 0){
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
-            printf("%s %s\n", command_tokens[0], command_tokens[1]);
+            ////printf("%s %s\n", command_tokens[0], command_tokens[1]);
 
-            printf("about to send and encrypt  %s\n", command);
-            atm_send_encrypted(atm, command, &received_message);
+            ////printf("about to send and encrypt  %s\n", command);
+            atm_send_rcv_encrypted(atm, command, &received_message);
 
 
             verify_and_decrypt_msg(received_message, atm->key, &decrypted_msg);
-            printf("decrypted received_message: %s\n", decrypted_msg);
-
+            ////printf("decrypted received_message: %s\n", decrypted_msg);
+            printf("%s\n", decrypted_msg);
         } else {
             printf("Usage:  begin-session <user-name>\n");
         }
