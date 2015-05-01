@@ -3,184 +3,19 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <openssl/evp.h>
-#include <openssl/aes.h>
-#include <openssl/rand.h>
+#include "aux_functions.h"
 
 
-int encrypt_stuff(unsigned char *plaintext, int plaintext_len, unsigned char *key,
-  unsigned char *iv, unsigned char *ciphertext)
-{
-  printf("ctx\n");
-  EVP_CIPHER_CTX *ctx;
-
-  int len = 0;
-
-  int ciphertext_len = 0;
-
-  /* Create and initialise the context */
-  if(!(ctx = EVP_CIPHER_CTX_new())) printf("context initialization failed\n");
- 
-  /* Initialise the encryption operation. IMPORTANT - ensure you use a key
-   * and IV size appropriate for your cipher
-   * In this example we are using 256 bit AES (i.e. a 256 bit key). The
-   * IV size for *most* modes is the same as the block size. For AES this
-   * is 128 bits */
-  
-  if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv))
-    printf("encryption operation initialization failed\n");
-
-  /* Provide the message to be encrypted, and obtain the encrypted output.
-   * EVP_EncryptUpdate can be called multiple times if necessary
-   */
-  
-  if(1 != EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len))
-    printf("encryptupdate failed\n");
-  ciphertext_len = len;
-
-  /* Finalise the encryption. Further ciphertext bytes may be written at
-   * this stage.
-   */
-  if(1 != EVP_EncryptFinal_ex(ctx, ciphertext + len, &len)) printf("encrypt update failed\n");
-
-  ciphertext_len += len;
-
-  /* Clean up */
-  EVP_CIPHER_CTX_free(ctx);
-
-  return ciphertext_len;
-}
-
-int decrypt_stuff(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
-  unsigned char *iv, unsigned char *plaintext)
-{
-  EVP_CIPHER_CTX *ctx;
-
-  int len;
-
-  int plaintext_len;
-
-  /* Create and initialise the context */
-  if(!(ctx = EVP_CIPHER_CTX_new())) printf("context initialization failed\n");
-
-  /* Initialise the decryption operation. IMPORTANT - ensure you use a key
-   * and IV size appropriate for your cipher
-   * In this example we are using 256 bit AES (i.e. a 256 bit key). The
-   * IV size for *most* modes is the same as the block size. For AES this
-   * is 128 bits */
-  if(1 != EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv))
-    printf("decryption operation initialization failed\n");
-
-  /* Provide the message to be decrypted, and obtain the plaintext output.
-   * EVP_DecryptUpdate can be called multiple times if necessary
-   */
-  if(1 != EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertext_len))
-    printf("decryptupdate failed\n");
-  plaintext_len = len;
-
-  /* Finalise the decryption. Further plaintext bytes may be written at
-   * this stage.
-   */
-  if(1 != EVP_DecryptFinal_ex(ctx, plaintext + len, &len)) printf("decrypt update failed\n");
-  plaintext_len += len;
-
-  /* Clean up */
-  EVP_CIPHER_CTX_free(ctx);
-
-  return plaintext_len;
-}
-
-int compose_message(unsigned char *plaintext, int plaintext_len, unsigned char *key,
-  unsigned char *iv, unsigned char **composed_message){
-
-    unsigned char ciphertext[2048] = "\0";
-    int ciphertext_len = encrypt_stuff(plaintext, plaintext_len, key, iv, ciphertext);
 
 
-    /*HMAC(AES_256_CBC(p,k,iv);iv);AES_256_CBC(p,k,iv);iv
-    
-     \____________32_____________/1\__ciphertext_len_/1\32      
+int tokenize_command(char *str, char ***argsOut){
 
-    */
-    //unsigned char composed[32 + 1 + ciphertext_len + 1 + 32];
-    unsigned char* composed;
-
-    unsigned char* hmac;
-
-    char * data = NULL;
-    asprintf(&data, "%s%s%s", ciphertext, ";", iv);
-
-    hmac = HMAC(EVP_sha256(), key, 32, data, strlen(data), NULL, NULL);
-
-    printf("data to hmac:%s\n", data);
-    printf("hmac(data):%s\n", hmac);
-
-    asprintf(&composed, "%s%s%s",hmac,";",data);
-
-    *composed_message = composed;
-
-    return strlen(*composed_message);
+    return split_string(str, " ", argsOut);
 
 }
 
-int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, unsigned char **decrypted){
-
-    char **msg_parts = "";
-    int num_msg_parts = 0;
-    num_msg_parts = split_string(composed_message, ";", &msg_parts);
-
-    char *expected_hmac = msg_parts[0];
-    char *ciphertext = msg_parts[1];
-    char *iv = msg_parts[2];
-    
-    unsigned char *computed_hmac;
-    char * cipher_semi_iv = NULL;
-    asprintf(&cipher_semi_iv, "%s%s%s", ciphertext, ";", iv);
-    computed_hmac = HMAC(EVP_sha256(), key, 32, cipher_semi_iv, strlen(cipher_semi_iv), NULL, NULL);
-
-    if(strcmp(computed_hmac,expected_hmac) != 0){
-        return -1;
-    }
 
 
-    unsigned char plaintext[2048] = "\0";
-    int plaintext_len = decrypt_stuff(ciphertext, strlen(ciphertext), key, iv, plaintext);
-
-    plaintext[plaintext_len] = '\0';
-
-    *decrypted = plaintext;
-    return 1;
-}
-
-
-int split_string(char *str, const char* separator, char ***argsOut){
-char *  p    = strtok (str, separator);
-int n_spaces = 0;
-
-char **argumentsOut = NULL;
-/* split string and append tokens to 'argumentsOut' */
-
-while (p) {
-  argumentsOut = realloc (argumentsOut, sizeof (char*) * ++n_spaces);
-
-  if (argumentsOut == NULL)
-    exit (-1); /* memory allocation failed */
-
-  argumentsOut[n_spaces-1] = p;
-
-  p = strtok (NULL, separator);
-}
-
-/* realloc one extra element for the last NULL */
-
-argumentsOut = realloc (argumentsOut, sizeof (char*) * (n_spaces+1));
-argumentsOut[n_spaces] = 0;
-
-*argsOut = argumentsOut;
-
-return n_spaces;
-
-}
 
 ATM* atm_create()
 {
@@ -233,45 +68,81 @@ ssize_t atm_recv(ATM *atm, char *data, size_t max_data_len)
     return recvfrom(atm->sockfd, data, max_data_len, 0, NULL, NULL);
 }
 
-void atm_process_command(ATM *atm, char *command)
+void atm_send_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** received)
 {
+    char recvline[10000];
+    int n;
 
+    unsigned char* composed_message;
 
-
-    // TODO: Implement the ATM's side of the ATM-bank protocol
-
-	/*
-	 * The following is a toy example that simply sends the
-	 * user's command to the bank, receives a message from the
-	 * bank, and then prints it to stdout.
-	 */
-
-    printf("No ATM implementation\n");
-	
-     //We're using EVP_aes_256_gcm
     unsigned char iv[16] = "";
 
     if (!RAND_bytes(iv, sizeof iv)) {
         printf("Error creating IV\n");
     }
 
-    char recvline[10000];
-    int n;
+    compose_message(msg_in, strlen(msg_in), atm->key, iv, &composed_message);
 
-    unsigned char* composed_message;
-    unsigned char* decomposed_message;
+    printf("ready to send:%s\n", composed_message);
 
-    int cml = 0;
-    cml = compose_message(command, strlen(command), atm->key, iv, &composed_message);
+    atm_send(atm, composed_message, strlen(composed_message));
 
-    printf("composed_message: %s\ncml: %d\n", composed_message, cml);
-    verify_and_decrypt_msg(composed_message, atm->key, &decomposed_message);
-
-    printf("decomposed_message: %s\n", decomposed_message);
-
-    atm_send(atm, command, strlen(command));
+    printf("sent:%s\n", composed_message);
     n = atm_recv(atm,recvline,10000);
     recvline[n]=0;
-    fputs(recvline,stdout);
+    printf("received %d bytes\n", n);
+    printf("recvline:%s\n", recvline);
+    *received = recvline;
+}
+
+void atm_process_command(ATM *atm, char *command)
+{
+
+    char copy_of_command[strlen(command)+1];
+    strncpy(copy_of_command,command,strlen(command));
+    copy_of_command[strlen(command)] = '\0';
+
+    char *msg_plaintext;
+
+    unsigned char* received_message;
+    unsigned char* decrypted_msg;
+
+    char **command_tokens = "";
+    int numArgs = 0;
+    numArgs = tokenize_command(copy_of_command, &command_tokens);
+
+    if(strcmp("begin-session",command_tokens[0]) == 0){
+        if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
+            printf("%s %s\n", command_tokens[0], command_tokens[1]);
+
+            printf("about to send and encrypt  %s\n", command);
+            atm_send_encrypted(atm, command, &received_message);
+
+
+            verify_and_decrypt_msg(received_message, atm->key, &decrypted_msg);
+            printf("decrypted received_message: %s\n", decrypted_msg);
+
+        } else {
+            printf("Usage:  begin-session <user-name>\n");
+        }
+    } else if(strcmp("balance",command_tokens[0]) == 0){
+        if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
+            printf("%s %s \n", command_tokens[0], command_tokens[1]);
+        } else {
+            printf("Usage:  balance <user-name>\n");
+        }
+    } else{
+        printf("Invalid command\n");
+    }
+
+
+
+    
+    
+
+    // atm_send(atm, command, strlen(command));
+    // n = atm_recv(atm,recvline,10000);
+    // recvline[n]=0;
+    // fputs(recvline,stdout);
 	
 }

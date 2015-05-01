@@ -1,82 +1,12 @@
 #include "bank.h"
 #include "ports.h"
+#include "util/hash_table.h"
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <regex.h>
-#include <openssl/evp.h>
-#include <openssl/aes.h>
-#include <openssl/rand.h>
+#include "aux_functions.h"
 
-int compare_str_to_regex(char* str, const char *pattern){
-    regex_t regex;
-    int reti;
-    char msgbuf[100];
 
-    /* Compile regular expression */
-    reti = regcomp(&regex, pattern, REG_EXTENDED);
-    if (reti) {
-        fprintf(stderr, "Could not compile regex\n");
-        exit(1);
-    }
-
-    /* Execute regular expression */
-    reti = regexec(&regex, str, 0, NULL, 0);
-    if (!reti) {
-        return 1;
-        fprintf(stderr, "Match\n");
-    }
-    else if (reti == REG_NOMATCH) {
-        fprintf(stderr, "%s does not match \n", str);
-        return 0;
-    }
-    else {
-        regerror(reti, &regex, msgbuf, sizeof(msgbuf));
-        fprintf(stderr, "Regex match failed: %s\n", msgbuf);
-        return 0;
-    }
-}
-
-int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, unsigned char **decrypted){
-
-    char **msg_parts = "";
-    int num_msg_parts = 0;
-    num_msg_parts = split_string(composed_message, ";", &msg_parts);
-
-    char *expected_hash = msg_parts[0];
-    char *ciphertext = msg_parts[1];
-    char *iv = msg_parts[2];
-
-}
-
-int split_string(char *str, const char* separator, char ***argsOut){
-char *  p    = strtok (str, separator);
-int n_spaces = 0;
-
-char **argumentsOut = NULL;
-/* split string and append tokens to 'argumentsOut' */
-
-while (p) {
-  argumentsOut = realloc (argumentsOut, sizeof (char*) * ++n_spaces);
-
-  if (argumentsOut == NULL)
-    exit (-1); /* memory allocation failed */
-
-  argumentsOut[n_spaces-1] = p;
-
-  p = strtok (NULL, separator);
-}
-
-/* realloc one extra element for the last NULL */
-
-argumentsOut = realloc (argumentsOut, sizeof (char*) * (n_spaces+1));
-argumentsOut[n_spaces] = 0;
-
-*argsOut = argumentsOut;
-
-return n_spaces;
-
-}
 
 int tokenize_command(char *str, char ***argsOut){
 
@@ -109,6 +39,7 @@ Bank* bank_create()
 
     // Set up the protocol state
     // TODO set up more, as needed
+    bank->ht = hash_table_create(10);
 
     return bank;
 }
@@ -137,6 +68,7 @@ ssize_t bank_recv(Bank *bank, char *data, size_t max_data_len)
 
 void bank_process_local_command(Bank *bank, char *command, size_t len)
 {
+
     char **command_tokens = "";
     int numArgs = 0;
     numArgs = tokenize_command(command, &command_tokens);
@@ -145,9 +77,11 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
         if(numArgs == 4 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0
             && compare_str_to_regex(command_tokens[2],"[0-9][0-9][0-9][0-9]") > 0
             && compare_str_to_regex(command_tokens[3],"[[:digit:]]+") > 0) {
-                printf("%s %s %s %s\n", command_tokens[0], command_tokens[1], command_tokens[2] , command_tokens[3]);
+
+            hash_table_add(bank->ht, command_tokens[1], command_tokens[3]);
+
         } else {
-            printf("Usage:  create-user <user-name> <pin> <balance>");
+            printf("Usage:  create-user <user-name> <pin> <balance>\n");
         }
     } else{
         printf("Invalid command\n");
@@ -157,11 +91,37 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
 
 void bank_process_remote_command(Bank *bank, char *command, size_t len)
 {
-    
+
+    // TODO: Implement the bank side of the ATM-bank protocol
+
+	/*
+	 * The following is a toy example that simply receives a
+	 * string from the ATM, prepends "Bank got: " and echoes 
+	 * it back to the ATM before printing it to stdout.
+	 */
+
+	/*
+    char sendline[1000];
+    command[len]=0;
+    bank_send(bank, sendline, strlen(sendline));
+    */
+
+
+    unsigned char* decrypted_msg;
+    if(verify_and_decrypt_msg(command, bank->key, &decrypted_msg) == 1){
+        printf("received:%s\ndecrypted successfully:%s", command, decrypted_msg);
+    } else {
+        printf("hmacs don't match\n");
+    }
+	
+    char copy_of_dmsg[strlen(decrypted_msg)+1];
+    strncpy(copy_of_dmsg,decrypted_msg,strlen(decrypted_msg));
+    copy_of_dmsg[strlen(decrypted_msg)] = '\0';
+
 
     char **command_tokens = "";
     int numArgs = 0;
-    numArgs = tokenize_command(command, &command_tokens);
+    numArgs = tokenize_command(copy_of_dmsg, &command_tokens);
 
     if(strcmp("deposit",command_tokens[0]) == 0){
         if(numArgs == 3 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0
@@ -179,24 +139,6 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
     } else{
         printf("Invalid command\n");
     }
-
-    // TODO: Implement the bank side of the ATM-bank protocol
-
-	/*
-	 * The following is a toy example that simply receives a
-	 * string from the ATM, prepends "Bank got: " and echoes 
-	 * it back to the ATM before printing it to stdout.
-	 */
-
-	
-    char sendline[1000];
-    command[len]=0;
-    sprintf(sendline, "Bank got: %s", command);
-    bank_send(bank, sendline, strlen(sendline));
-    printf("Received the following:\n");
-    fputs(command, stdout);
-	
-
 
 
 }
