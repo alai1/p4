@@ -30,7 +30,8 @@ typedef struct _Bank
 
     // Protocol state
     unsigned char *key;
-    HashTable *ht;
+    HashTable *ht_bal;
+    HashTable *ht_salts;
 } Bank;
 
 Bank* bank_create();

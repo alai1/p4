@@ -246,6 +246,26 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
     return 1;
 }
 
+/*
+example usage:
+    char *hash_out = NULL;
+    hash_pin(command_tokens[2],iv,&hash_out);
+*/
+
+void hash_pin(char *pin, char*iv, char **hash_out){
+    char * data = NULL;
+    asprintf(&data, "%s%s%s", iv, ";", pin);
+
+    char *cur_hash = data;
+    int z;
+    for(z = 0; z < 7; z++){
+        unsigned char obuf[32] = "\0";
+        SHA256(cur_hash, strlen(cur_hash), cur_hash);
+    }
+    asprintf(hash_out, "%s", cur_hash);
+}
+
+
 /* Append an item to a dynamically allocated array of strings. On failure,
    return NULL, in which case the original array is intact. The item
    string is dynamically copied. If the array is NULL, allocate a new

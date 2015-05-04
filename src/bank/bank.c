@@ -39,7 +39,8 @@ Bank* bank_create()
 
     // Set up the protocol state
     // TODO set up more, as needed
-    bank->ht = hash_table_create(10);
+    bank->ht_bal = hash_table_create(10);
+    bank->ht_salts = hash_table_create(10);
 
     return bank;
 }
@@ -116,6 +117,7 @@ void bank_send_rcv_encrypted(Bank *bank, unsigned char* msg_in, unsigned char** 
     *received = recvline;
 }
 
+
 void bank_process_local_command(Bank *bank, char *command, size_t len)
 {
 
@@ -123,12 +125,54 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
     int numArgs = 0;
     numArgs = tokenize_command(command, &command_tokens);
 
+
+
     if(strcmp("create-user",command_tokens[0]) == 0){
         if(numArgs == 4 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0
             && compare_str_to_regex(command_tokens[2],"[0-9][0-9][0-9][0-9]") > 0
             && compare_str_to_regex(command_tokens[3],"[[:digit:]]+") > 0) {
+            
+            if(hash_table_find(bank->ht_bal, command_tokens[1]) == NULL){
+                hash_table_add(bank->ht_bal, command_tokens[1], command_tokens[3]);
 
-            hash_table_add(bank->ht, command_tokens[1], command_tokens[3]);
+                unsigned char iv[16] = "";
+
+                if (!RAND_bytes(iv, sizeof iv)) {
+                    printf("Error creating IV\n");
+                }
+                hash_table_add(bank->ht_salts, command_tokens[1], iv);
+
+                
+                char *hash_out = NULL;
+                hash_pin(command_tokens[2],iv,&hash_out);
+                
+                printf("final hash: %s\n", hash_out);
+
+                //CHECK IF NEED TO FIND CWD
+                /*char cwd[1024];
+                if (getcwd(cwd, sizeof(cwd)) == NULL){
+                    printf("Error getting current working directory\n");
+                }
+                */
+                char * card_file_name = NULL;
+                asprintf(&card_file_name, "%s%s", command_tokens[1], ".card");
+
+                FILE *cardFile;
+                cardFile = fopen(card_file_name, "w");
+
+                int results = fputs(hash_out, cardFile);
+                if (results == EOF) {
+                    printf("Error creating card file for user %s", command_tokens[1]);
+                    //TODO: ROLL BACK CHANGES!
+                }
+                fclose(cardFile);
+
+                printf("Created user %s\n", command_tokens[1]);
+                
+
+            } else {
+                printf("Error: user %s already exists\n", command_tokens[1]);
+            }
 
         } else {
             printf("Usage:  create-user <user-name> <pin> <balance>\n");
@@ -170,21 +214,22 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
     if(strcmp("deposit",command_tokens[0]) == 0){
         if(numArgs == 3 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0
             && compare_str_to_regex(command_tokens[2],"[[:digit:]]+") > 0) {
-                printf("%s %s %s\n", command_tokens[0], command_tokens[1], command_tokens[2]);
+
         } else {
             printf("Usage:  deposit <user-name> <amt>\n");
         }
     } else if(strcmp("balance",command_tokens[0]) == 0){
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
-            printf("%s %s \n", command_tokens[0], command_tokens[1]);
+
         } else {
             printf("Usage:  balance <user-name>\n");
         }
     } else if(strcmp("begin-session",command_tokens[0]) == 0){
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
-            if(hash_table_find(bank->ht, command_tokens[0]) == NULL){
-                char * cipher_semi_iv = NULL;
-                bank_respond_encrypted(bank, "No such user");
+            if(hash_table_find(bank->ht_bal, command_tokens[0]) == NULL){
+                bank_respond_encrypted(bank, "No such user\n");
+            } else {
+                bank_respond_encrypted(bank, hash_table_find(bank->ht_salts,command_tokens[0]));
             }
         } else {
             printf("Usage:  balance <user-name>\n");
