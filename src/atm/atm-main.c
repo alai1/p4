@@ -43,7 +43,7 @@ int main(int argc, char**argv)
         }
     }
 
-    char user_input[1000];
+    char *user_input = malloc(1000);
 
     ATM *atm = atm_create();
 
@@ -52,19 +52,21 @@ int main(int argc, char**argv)
     if(strcmp(atm->cur_user, "") == 0) {
       printf("%s", prompt);
     } else {
-      printf("ATM (%s):", atm->cur_user);
+      printf("ATM (%s): ", atm->cur_user);
     }
     fflush(stdout);
 
     while (fgets(user_input, 10000, stdin) != NULL)
     {
-        atm_process_command(atm, user_input);
-        if(strcmp(atm->cur_user, "") == 0) {
-          printf("%s", prompt);
-        } else {
-          printf("ATM (%s):", atm->cur_user);
+        if(strcmp(user_input,"\n") != 0){
+            atm_process_command(atm, user_input);
+            if(strcmp(atm->cur_user, "") == 0) {
+              printf("%s", prompt);
+            } else {
+              printf("ATM (%s): ", atm->cur_user);
+            }
+            fflush(stdout);
         }
-        fflush(stdout);
     }
     return EXIT_SUCCESS;
 }

@@ -95,7 +95,7 @@ void atm_send_rcv_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** rec
 
 void atm_process_command(ATM *atm, char *command)
 {
-
+    printf("processing atm command\n");
     strtok(command, "\n");
 
     char copy_of_command[strlen(command)+1];
@@ -112,7 +112,7 @@ void atm_process_command(ATM *atm, char *command)
     
     numArgs = tokenize_command(copy_of_command, &command_tokens);
 
-
+    printf("split args\n");
 
     if(strcmp("begin-session",command_tokens[0]) == 0){
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
@@ -147,10 +147,10 @@ void atm_process_command(ATM *atm, char *command)
                 return;
             }
                 
-            if(strcmp(atm->cur_user, command_tokens[1]) == 0) {
+            if(strcmp(atm->cur_user, "") != 0) {
                 printf("A user is already logged in\n");
             } else {
-                printf("PIN?");
+                printf("PIN? ");
                 char pin[5];
                 if(fgets(pin, 5, stdin) != NULL && compare_str_to_regex(pin, "[0-9][0-9][0-9][0-9]")) {
                     
@@ -159,7 +159,7 @@ void atm_process_command(ATM *atm, char *command)
 
                     //receive either "No such user" or the IV for the user
                     verify_and_decrypt_msg(received_message, atm->key, &decrypted_msg);
-                    printf("decrypted_msg%s\n", decrypted_msg);
+                    //printf("decrypted_msg%s\n", decrypted_msg);
 
                     if(strcmp(decrypted_msg, "No such user\n") == 0) {
                         printf("No such user\n");
@@ -204,7 +204,7 @@ void atm_process_command(ATM *atm, char *command)
         } else {
             printf("Usage: balance <user-name>\n");
         }
-    } else if(strcmp("withdraw", command_tokens[0] == 0)) {
+    } else if(strcmp("withdraw", command_tokens[0])== 0) {
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1], "[0-9]+") > 0 && command_tokens[1] >= 0) {
             if(strcmp(atm->cur_user, "") == 0) {
                 printf("No user logged in\n");
