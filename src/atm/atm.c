@@ -154,7 +154,6 @@ void atm_process_command(ATM *atm, char *command)
                 char pin[5];
                 if(fgets(pin, 5, stdin) != NULL && compare_str_to_regex(pin, "[0-9][0-9][0-9][0-9]")) {
                     
-                    printf("sending:%s\n", command);
                     atm_send_rcv_encrypted(atm, command, &received_message);
 
 
@@ -167,15 +166,16 @@ void atm_process_command(ATM *atm, char *command)
                     } else {
                         unsigned char* received_iv = decrypted_msg;
 
-                        printf("received_iv%s\n", received_iv);
-
-                        printf("card contents(7xHash(iv;pin)): %s\n", card_contents);
-
                         char *hashed = NULL;
                         hash_pin(pin, received_iv, &hashed);
+
                         if(strcmp(hashed, card_contents) == 0) {
                             printf("Authorized\n");
-                            atm->cur_user = command_tokens[1];
+                            
+                            char *allocd_cur_user = NULL;
+                            asprintf(&allocd_cur_user, "%s", command_tokens[1]);
+
+                            atm->cur_user = allocd_cur_user;
                         }
                     }
 

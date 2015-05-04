@@ -268,11 +268,18 @@ void hash_pin(char *pin, char*iv, char **hash_out){
     char * data = NULL;
     asprintf(&data, "%s%s%s", iv, ";", pin);
 
-    char *cur_hash = data;
+    printf("data to hash:%s\n", data);
+
+    char obuf[33] = "\0";
+
+    char *cur_hash;
+
     int z;
     for(z = 0; z < 7; z++){
-        unsigned char obuf[32] = "\0";
-        SHA256(cur_hash, strlen(cur_hash), cur_hash);
+        SHA256(data, strlen(data), obuf);
+        asprintf(&cur_hash, "%s", obuf);
+        printf("hash #%d: %s\n",z, cur_hash);
+        data = cur_hash;
     }
     asprintf(hash_out, "%s", cur_hash);
 }

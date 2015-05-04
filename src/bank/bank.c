@@ -140,20 +140,24 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
                 hash_table_add(bank->ht_bal, command_tokens[1], command_tokens[3]);
 
                 //printf("calc iv\n");
-                unsigned char iv[16] = "";
+                unsigned char iv[27] = "\0";
 
                 if (!RAND_bytes(iv, sizeof iv)) {
                     printf("Error creating IV\n");
                 }
 
+                printf("iv: %s\n", iv);
+
                 char * alocd_iv = NULL;
                 asprintf(&alocd_iv, "%s", iv);
+
+                printf("allocated iv%s\n", alocd_iv);
 
                 hash_table_add(bank->ht_salts, command_tokens[1], alocd_iv);
 
                 //printf("calc hash\n");
                 char *hash_out = NULL;
-                hash_pin(command_tokens[2],iv,&hash_out);
+                hash_pin(command_tokens[2],alocd_iv,&hash_out);
                 
                 //printf("final hash: %s\n", hash_out);
 
@@ -236,7 +240,7 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
             } else {
                 char * iv_to_send = NULL;
                 asprintf(&iv_to_send, "%s", hash_table_find(bank->ht_salts,command_tokens[1]));
-                dprint("sending user's iv:%s\n", iv_to_send);
+                printf("sending user's iv:%s\n", iv_to_send);
                 bank_respond_encrypted(bank, iv_to_send);
             }
         } else {
