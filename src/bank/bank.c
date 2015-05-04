@@ -132,9 +132,12 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
             && compare_str_to_regex(command_tokens[2],"[0-9][0-9][0-9][0-9]") > 0
             && compare_str_to_regex(command_tokens[3],"[[:digit:]]+") > 0) {
             
+            //printf("create-user\n");
+
             if(hash_table_find(bank->ht_bal, command_tokens[1]) == NULL){
                 hash_table_add(bank->ht_bal, command_tokens[1], command_tokens[3]);
 
+                //printf("calc iv\n");
                 unsigned char iv[16] = "";
 
                 if (!RAND_bytes(iv, sizeof iv)) {
@@ -142,11 +145,11 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
                 }
                 hash_table_add(bank->ht_salts, command_tokens[1], iv);
 
-                
+                //printf("calc hash\n");
                 char *hash_out = NULL;
                 hash_pin(command_tokens[2],iv,&hash_out);
                 
-                printf("final hash: %s\n", hash_out);
+                //printf("final hash: %s\n", hash_out);
 
                 //CHECK IF NEED TO FIND CWD
                 /*char cwd[1024];
@@ -175,7 +178,7 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
             }
 
         } else {
-            printf("Usage:  create-user <user-name> <pin> <balance>\n");
+            printf("Usage: create-user <user-name> <pin> <balance>\n");
         }
     } else{
         printf("Invalid command\n");

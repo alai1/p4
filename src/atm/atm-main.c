@@ -49,14 +49,22 @@ int main(int argc, char**argv)
 
     atm->key = key;
 
-    printf("%s", prompt);
+    if(strcmp(atm->cur_user, "") == 0) {
+      printf("%s", prompt);
+    } else {
+      printf("ATM (%s):", atm->cur_user);
+    }
     fflush(stdout);
 
-    while (fgets(user_input, 10000,stdin) != NULL)
+    while (fgets(user_input, 10000, stdin) != NULL)
     {
         atm_process_command(atm, user_input);
-        printf("%s", prompt);
+        if(strcmp(atm->cur_user, "") == 0) {
+          printf("%s", prompt);
+        } else {
+          printf("ATM (%s):", atm->cur_user);
+        }
         fflush(stdout);
     }
-	return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }

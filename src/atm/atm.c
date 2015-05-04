@@ -43,6 +43,8 @@ ATM* atm_create()
     // Set up the protocol state
     // TODO set up more, as needed
 
+    atm->cur_user = "";
+
     return atm;
 }
 
@@ -83,15 +85,11 @@ void atm_send_rcv_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** rec
 
     compose_message(msg_in, strlen(msg_in), atm->key, iv, &composed_message);
 
-    ////printf("atm ready to send:%s\n", composed_message);
-
     atm_send(atm, composed_message, strlen(composed_message));
 
-    ////printf("atm sent:%s\n", composed_message);
     n = atm_recv(atm,recvline,10000);
     recvline[n]=0;
-    ////printf("atm received %d bytes\n", n);
-    ////printf("atm recvline:%s\n", recvline);
+
     *received = recvline;
 }
 
@@ -116,33 +114,111 @@ void atm_process_command(ATM *atm, char *command)
             ////printf("%s %s\n", command_tokens[0], command_tokens[1]);
 
             ////printf("about to send and encrypt  %s\n", command);
-            atm_send_rcv_encrypted(atm, command, &received_message);
+            char card_file_name[254];
+            sprintf(card_file_name, "%s.card", command_tokens[1]);
+            printf("card_file_name:%s", card_file_name);
+            FILE *card_file = fopen(card_file_name, "r");
+            if(card_file == NULL) {
+                printf("Unable to access %s's card\n", command_tokens[1]);
+            } else if(strcmp(atm->cur_user, command_tokens[1]) == 0) {
+                printf("A user is already logged in\n");
+            } else {
+                printf("PIN?");
+                char pin[5];
+                if(fgets(pin, 5, stdin) != NULL && compare_str_to_regex(pin, "[0-9][0-9][0-9][0-9]")) {
+                    atm_send_rcv_encrypted(atm, command, &received_message);
 
 
-            verify_and_decrypt_msg(received_message, atm->key, &decrypted_msg);
-            ////printf("decrypted received_message: %s\n", decrypted_msg);
-            printf("%s\n", decrypted_msg);
+                    //receive either "No such user" or the IV for the user
+                    verify_and_decrypt_msg(received_message, atm->key, &decrypted_msg);
+
+                    if(strcmp(decrypted_msg, "No such user\n")) {
+                        printf("No such user\n");
+                    } else {
+                        unsigned char* received_iv = decrypted_msg;
+
+                        char* line;
+                        char* stored_iv;
+                        char* encrypted_data;
+                        size_t len = 0;
+
+                        getline(&line, len, card_file); 
+
+                        char ***parts;
+                        split_string(line, ";", parts);
+                        stored_iv = parts[0];
+                        encrypted_data = parts[1];
+
+                        if(strcmp(stored_iv, received_iv) == 0) {
+                            char *hashed = NULL;
+                            hash_pin(pin, stored_iv, &hashed);
+                            if(strcmp(hashed, encrypted_data) == 0) {
+                                printf("Authorized\n");
+                            }
+                        } else {
+                            printf("Not authorized\n");
+                        }
+
+                    }
+
+                    if(strcmp(decrypted_msg, "Authorized") == 0) {
+                        atm->cur_user = command_tokens[1];
+                    } else printf("Not authorized\n");
+                } else {
+                    printf("Not authorized\n");
+                }
+            }
         } else {
-            printf("Usage:  begin-session <user-name>\n");
+            printf("Usage: begin-session <user-name>\n");
         }
-    } else if(strcmp("balance",command_tokens[0]) == 0){
-        if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
-            printf("%s %s \n", command_tokens[0], command_tokens[1]);
+    } else if(strcmp("balance",command_tokens[0]) == 0) {
+        if(numArgs == 1) {
+            if(strcmp(atm->cur_user, "") == 0) {
+                printf("No user logged in\n");
+            } else {
+                char new_command[259];
+                sprintf(new_command, "%s %s", command_tokens[0], atm->cur_user);
+                atm_send_rcv_encrypted(atm, new_command, &received_message);
+
+                verify_and_decrypt_msg(received_message, atm->key, &decrypted_msg);
+
+                if(compare_str_to_regex(decrypted_msg, "[0-9]+")) {
+                    printf("$%d\n", decrypted_msg);
+                }
+            }
         } else {
-            printf("Usage:  balance <user-name>\n");
+            printf("Usage: balance <user-name>\n");
         }
-    } else{
+    } else if(strcmp("withdraw", command_tokens[0] == 0)) {
+        if(numArgs == 2 && compare_str_to_regex(command_tokens[1], "[0-9]+") > 0 && command_tokens[1] >= 0) {
+            if(strcmp(atm->cur_user, "") == 0) {
+                printf("No user logged in\n");
+            } else {
+                char new_command[280]; //not sure what this exact value should be
+                sprintf(new_command, "%s %s %s", command_tokens[0], atm->cur_user, command_tokens[1]);
+
+                atm_send_rcv_encrypted(atm, new_command, &received_message);
+
+                //should receive either "Insufficient funds" or "$<amt> dispensed"
+                verify_and_decrypt_msg(received_message, atm->key, &decrypted_msg);
+
+                printf("%s\n", decrypted_msg);             
+            }
+        }
+    } else if(strcmp("end-session", command_tokens[0]) == 0) {
+        if(strcmp(atm->cur_user, "") == 0) {
+            printf("No user logged in\n");
+        } else {
+            atm->cur_user = "";
+            printf("User logged out\n");
+        }
+    } else {
         printf("Invalid command\n");
     }
-
-
-
-    
-    
 
     // atm_send(atm, command, strlen(command));
     // n = atm_recv(atm,recvline,10000);
     // recvline[n]=0;
     // fputs(recvline,stdout);
-	
+    
 }
