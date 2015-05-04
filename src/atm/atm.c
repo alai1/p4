@@ -96,6 +96,8 @@ void atm_send_rcv_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** rec
 void atm_process_command(ATM *atm, char *command)
 {
 
+    strtok(command, "\n");
+
     char copy_of_command[strlen(command)+1];
     strncpy(copy_of_command,command,strlen(command));
     copy_of_command[strlen(command)] = '\0';
@@ -107,7 +109,10 @@ void atm_process_command(ATM *atm, char *command)
 
     char **command_tokens = "";
     int numArgs = 0;
+    
     numArgs = tokenize_command(copy_of_command, &command_tokens);
+
+
 
     if(strcmp("begin-session",command_tokens[0]) == 0){
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
@@ -116,54 +121,64 @@ void atm_process_command(ATM *atm, char *command)
             ////printf("about to send and encrypt  %s\n", command);
             char card_file_name[254];
             sprintf(card_file_name, "%s.card", command_tokens[1]);
-            printf("card_file_name:%s", card_file_name);
-            FILE *card_file = fopen(card_file_name, "r");
-            if(card_file == NULL) {
+
+            long length = 0;
+            char * fileExtension;
+            FILE *cardFile;
+            unsigned char * card_contents = NULL;
+
+            cardFile = fopen(card_file_name, "r");
+            if((fileExtension = strrchr(card_file_name,'.')) != NULL ) {
+                if(strcmp(fileExtension,".card") == 0 && cardFile) {
+                      fseek (cardFile, 0, SEEK_END);
+                      length = ftell (cardFile);
+                      fseek (cardFile, 0, SEEK_SET);
+                      card_contents = malloc (length);
+                      if (card_contents)
+                      {
+                        fread (card_contents, 1, length, cardFile);
+                      }
+                      fclose (cardFile);
+                } else {
+                    //WHOOPS?
+                }
+            } else {
                 printf("Unable to access %s's card\n", command_tokens[1]);
-            } else if(strcmp(atm->cur_user, command_tokens[1]) == 0) {
+                return;
+            }
+                
+            if(strcmp(atm->cur_user, command_tokens[1]) == 0) {
                 printf("A user is already logged in\n");
             } else {
                 printf("PIN?");
                 char pin[5];
                 if(fgets(pin, 5, stdin) != NULL && compare_str_to_regex(pin, "[0-9][0-9][0-9][0-9]")) {
+                    
+                    printf("sending:%s\n", command);
                     atm_send_rcv_encrypted(atm, command, &received_message);
 
 
                     //receive either "No such user" or the IV for the user
                     verify_and_decrypt_msg(received_message, atm->key, &decrypted_msg);
+                    printf("decrypted_msg%s\n", decrypted_msg);
 
-                    if(strcmp(decrypted_msg, "No such user\n")) {
+                    if(strcmp(decrypted_msg, "No such user\n") == 0) {
                         printf("No such user\n");
                     } else {
                         unsigned char* received_iv = decrypted_msg;
 
-                        char* line;
-                        char* stored_iv;
-                        char* encrypted_data;
-                        size_t len = 0;
+                        printf("received_iv%s\n", received_iv);
 
-                        getline(&line, len, card_file); 
+                        printf("card contents(7xHash(iv;pin)): %s\n", card_contents);
 
-                        char ***parts;
-                        split_string(line, ";", parts);
-                        stored_iv = parts[0];
-                        encrypted_data = parts[1];
-
-                        if(strcmp(stored_iv, received_iv) == 0) {
-                            char *hashed = NULL;
-                            hash_pin(pin, stored_iv, &hashed);
-                            if(strcmp(hashed, encrypted_data) == 0) {
-                                printf("Authorized\n");
-                            }
-                        } else {
-                            printf("Not authorized\n");
+                        char *hashed = NULL;
+                        hash_pin(pin, received_iv, &hashed);
+                        if(strcmp(hashed, card_contents) == 0) {
+                            printf("Authorized\n");
+                            atm->cur_user = command_tokens[1];
                         }
-
                     }
 
-                    if(strcmp(decrypted_msg, "Authorized") == 0) {
-                        atm->cur_user = command_tokens[1];
-                    } else printf("Not authorized\n");
                 } else {
                     printf("Not authorized\n");
                 }

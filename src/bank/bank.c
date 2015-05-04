@@ -121,6 +121,8 @@ void bank_send_rcv_encrypted(Bank *bank, unsigned char* msg_in, unsigned char** 
 void bank_process_local_command(Bank *bank, char *command, size_t len)
 {
 
+    strtok(command, "\n");
+
     char **command_tokens = "";
     int numArgs = 0;
     numArgs = tokenize_command(command, &command_tokens);
@@ -143,7 +145,11 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
                 if (!RAND_bytes(iv, sizeof iv)) {
                     printf("Error creating IV\n");
                 }
-                hash_table_add(bank->ht_salts, command_tokens[1], iv);
+
+                char * alocd_iv = NULL;
+                asprintf(&alocd_iv, "%s", iv);
+
+                hash_table_add(bank->ht_salts, command_tokens[1], alocd_iv);
 
                 //printf("calc hash\n");
                 char *hash_out = NULL;
@@ -151,12 +157,6 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
                 
                 //printf("final hash: %s\n", hash_out);
 
-                //CHECK IF NEED TO FIND CWD
-                /*char cwd[1024];
-                if (getcwd(cwd, sizeof(cwd)) == NULL){
-                    printf("Error getting current working directory\n");
-                }
-                */
                 char * card_file_name = NULL;
                 asprintf(&card_file_name, "%s%s", command_tokens[1], ".card");
 
@@ -189,6 +189,7 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
 void bank_process_remote_command(Bank *bank, char *command, size_t len)
 {
 
+
     // TODO: Implement the bank side of the ATM-bank protocol
 
 	/*
@@ -205,10 +206,11 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
         ////printf("hmacs don't match\n");
     }
 	
+    strtok(decrypted_msg, "\n");
+
     char copy_of_dmsg[strlen(decrypted_msg)+1];
     strncpy(copy_of_dmsg,decrypted_msg,strlen(decrypted_msg));
     copy_of_dmsg[strlen(decrypted_msg)] = '\0';
-
 
     char **command_tokens = "";
     int numArgs = 0;
@@ -229,16 +231,20 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
         }
     } else if(strcmp("begin-session",command_tokens[0]) == 0){
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
-            if(hash_table_find(bank->ht_bal, command_tokens[0]) == NULL){
+            if(hash_table_find(bank->ht_bal, command_tokens[1]) == NULL){
                 bank_respond_encrypted(bank, "No such user\n");
             } else {
-                bank_respond_encrypted(bank, hash_table_find(bank->ht_salts,command_tokens[0]));
+                char * iv_to_send = NULL;
+                asprintf(&iv_to_send, "%s", hash_table_find(bank->ht_salts,command_tokens[1]));
+                dprint("sending user's iv:%s\n", iv_to_send);
+                bank_respond_encrypted(bank, iv_to_send);
             }
         } else {
             printf("Usage:  balance <user-name>\n");
         }
     } else{
         printf("Invalid command\n");
+        dprint("Invalid command: %s", decrypted_msg);
     }
 
 

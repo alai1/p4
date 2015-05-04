@@ -3,6 +3,7 @@
 #include <openssl/aes.h>
 #include <openssl/rand.h>
 
+void dprint(const char *format, ...);
 int compare_str_to_regex(char* str, const char *pattern);
 int split_string(char *str, const char* separator, char ***argsOut);
 int encrypt_stuff(unsigned char *plaintext, int plaintext_len, unsigned char *key,

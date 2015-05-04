@@ -8,7 +8,19 @@
 
 
 #define MAX_OUTPUT 20
+#define DEBUG_MODE 1
 
+void dprint(const char *format, ...){
+    char * concat = NULL;
+    asprintf(&concat, "%s%s", "¯\\_(ツ)_/¯", format);
+
+    va_list args;
+    va_start(args, format);
+    if(DEBUG_MODE){
+      vprintf(concat, args);
+    }
+    va_end(args);
+}
 
 int compare_str_to_regex(char* str, const char *pattern){
     regex_t regex;
