@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include "atm.h"
 #include "ports.h"
 #include <string.h>
@@ -83,6 +84,7 @@ void atm_send_rcv_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** rec
         printf("Error creating IV\n");
     }
 
+    printf("atm sending plaintext: %s\n", msg_in);
     compose_message(msg_in, strlen(msg_in), atm->key, iv, &composed_message);
 
     atm_send(atm, composed_message, strlen(composed_message));
@@ -95,14 +97,13 @@ void atm_send_rcv_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** rec
 
 void atm_process_command(ATM *atm, char *command)
 {
-    printf("processing atm command\n");
     strtok(command, "\n");
 
     char copy_of_command[strlen(command)+1];
     strncpy(copy_of_command,command,strlen(command));
     copy_of_command[strlen(command)] = '\0';
 
-    char *msg_plaintext;
+    char *msg_plaintext = NULL;
 
     unsigned char* received_message;
     unsigned char* decrypted_msg;
@@ -119,8 +120,8 @@ void atm_process_command(ATM *atm, char *command)
             ////printf("%s %s\n", command_tokens[0], command_tokens[1]);
 
             ////printf("about to send and encrypt  %s\n", command);
-            char card_file_name[254];
-            sprintf(card_file_name, "%s.card", command_tokens[1]);
+            char *card_file_name = NULL;
+            asprintf(&card_file_name, "%s.card", command_tokens[1]);
 
             long length = 0;
             char * fileExtension;
@@ -146,6 +147,8 @@ void atm_process_command(ATM *atm, char *command)
                 printf("Unable to access %s's card\n", command_tokens[1]);
                 return;
             }
+
+            insane_free(card_file_name);
                 
             if(strcmp(atm->cur_user, "") != 0) {
                 printf("A user is already logged in\n");
@@ -159,7 +162,9 @@ void atm_process_command(ATM *atm, char *command)
 
                     //receive either "No such user" or the IV for the user
                     verify_and_decrypt_msg(received_message, atm->key, &decrypted_msg);
-                    //printf("decrypted_msg%s\n", decrypted_msg);
+                    printf("decrypted_msg%s\n", decrypted_msg);
+
+                    //insane_free(received_message);
 
                     if(strcmp(decrypted_msg, "No such user\n") == 0) {
                         printf("No such user\n");
@@ -169,6 +174,9 @@ void atm_process_command(ATM *atm, char *command)
                         char *hashed = NULL;
                         hash_pin(pin, received_iv, &hashed);
 
+                        printf("hashed: %s\n", hashed);
+                        printf("card_contents: %s\n", card_contents);
+
                         if(strcmp(hashed, card_contents) == 0) {
                             printf("Authorized\n");
                             
@@ -176,7 +184,12 @@ void atm_process_command(ATM *atm, char *command)
                             asprintf(&allocd_cur_user, "%s", command_tokens[1]);
 
                             atm->cur_user = allocd_cur_user;
+                        } else {
+                            printf("Not authorized\n");
                         }
+
+                        insane_free(hashed);
+                        insane_free(card_contents);
                     }
 
                 } else {
@@ -191,15 +204,19 @@ void atm_process_command(ATM *atm, char *command)
             if(strcmp(atm->cur_user, "") == 0) {
                 printf("No user logged in\n");
             } else {
-                char new_command[259];
-                sprintf(new_command, "%s %s", command_tokens[0], atm->cur_user);
+                char *new_command = NULL;
+                asprintf(&new_command, "%s %s", command_tokens[0], atm->cur_user);
+
                 atm_send_rcv_encrypted(atm, new_command, &received_message);
+
+                insane_free(new_command);
 
                 verify_and_decrypt_msg(received_message, atm->key, &decrypted_msg);
 
                 if(compare_str_to_regex(decrypted_msg, "[0-9]+")) {
                     printf("$%d\n", decrypted_msg);
                 }
+                insane_free(decrypted_msg);
             }
         } else {
             printf("Usage: balance <user-name>\n");
@@ -209,8 +226,8 @@ void atm_process_command(ATM *atm, char *command)
             if(strcmp(atm->cur_user, "") == 0) {
                 printf("No user logged in\n");
             } else {
-                char new_command[280]; //not sure what this exact value should be
-                sprintf(new_command, "%s %s %s", command_tokens[0], atm->cur_user, command_tokens[1]);
+                char *new_command = NULL;
+                asprintf(&new_command, "%s %s %s", command_tokens[0], atm->cur_user, command_tokens[1]);
 
                 atm_send_rcv_encrypted(atm, new_command, &received_message);
 

@@ -4,7 +4,7 @@
  * See hash_table_example.c for an example of how to use it.
  * Feel free to change this as you desire.
  */
-
+#define _GNU_SOURCE
 #ifndef __HASH_TABLE_H__
 #define __HASH_TABLE_H__
 

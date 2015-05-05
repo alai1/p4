@@ -6,7 +6,7 @@
  * For the second part of the project, feel free to change as necessary.
  */
 
-
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include "router.h"

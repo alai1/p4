@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,6 +8,8 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
+
+#define insane_free(p) { free(p); p = 0; }
 
 #ifndef TRUE
 #define TRUE 1
@@ -25,21 +28,12 @@ if ( argc != 2 ){
 
 FILE *bankFile, *atmFile;
     
-char bankFileName[255] = "";
-snprintf(bankFileName, sizeof bankFileName, "%s%s", argv[1], ".bank");
+char *bankFileName = NULL;
+asprintf(&bankFileName, "%s%s", argv[1], ".bank");
 
-char atmFileName[255] = "";
-snprintf(atmFileName, sizeof atmFileName, "%s%s", argv[1], ".atm");
+char *atmFileName = NULL;
+asprintf(&atmFileName, "%s%s", argv[1], ".atm");
 
-char someThingIsSeverelyBrokenInMemoryDontDelete[255] = "";
-/*If you delete it, when you create unsigned key[1] and then do the random bytes function,
-you get a random byte with atmFileName appended to the end! e.g. "A0keys.atm" No matter
-what the key size it would always append atmFileName to it.
-
-I spent like 3 hours trying to figure out why this was happening and I think it has something
-to do will null pointers or something but I have no idea why its broken. Putting a variable on
-the stack between them fixed it. HOLY FUCK.
-*/
 
 if( access( bankFileName, F_OK ) != -1 || access( atmFileName, F_OK ) != -1 ) {
     printf("Error:  one of the files already exists");
@@ -74,6 +68,8 @@ if (results == EOF) {
 fclose(atmFile);
 
 
+insane_free(atmFileName);
+insane_free(bankFileName);
 
 printf("Successfully initialized bank state\n");
 

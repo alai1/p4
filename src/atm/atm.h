@@ -7,7 +7,7 @@
  * Feel free to update the struct and the processing as you desire
  * (though you probably won't need/want to change send/recv).
  */
-
+#define _GNU_SOURCE
 #ifndef __ATM_H__
 #define __ATM_H__
 

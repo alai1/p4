@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include "router.h"
 #include "ports.h"
 #include <string.h>

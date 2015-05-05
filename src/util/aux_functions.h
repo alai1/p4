@@ -1,7 +1,10 @@
+#define _GNU_SOURCE
 #include <regex.h>
 #include <openssl/evp.h>
 #include <openssl/aes.h>
 #include <openssl/rand.h>
+
+#define insane_free(p) { free(p); p = 0; }
 
 void dprint(const char *format, ...);
 int compare_str_to_regex(char* str, const char *pattern);

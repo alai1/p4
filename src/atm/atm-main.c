@@ -3,7 +3,7 @@
  *
  * You are free to change this as necessary.
  */
-
+#define _GNU_SOURCE
 #include <string.h>
 #include "atm.h"
 #include <stdio.h>

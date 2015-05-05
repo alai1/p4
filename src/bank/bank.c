@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include "bank.h"
 #include "ports.h"
 #include "util/hash_table.h"
@@ -140,7 +141,7 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
                 hash_table_add(bank->ht_bal, command_tokens[1], command_tokens[3]);
 
                 //printf("calc iv\n");
-                unsigned char iv[27] = "\0";
+                unsigned char iv[32] = "";
 
                 if (!RAND_bytes(iv, sizeof iv)) {
                     printf("Error creating IV\n");
@@ -169,6 +170,9 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
                     //TODO: ROLL BACK CHANGES!
                 }
                 fclose(cardFile);
+                
+                insane_free(hash_out);
+                insane_free(card_file_name);
 
                 printf("Created user %s\n", command_tokens[1]);
                 
@@ -198,14 +202,16 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
 	 * it back to the ATM before printing it to stdout.
 	 */
 
-    unsigned char* received_message;
-    unsigned char* decrypted_msg;
+    unsigned char* received_message = NULL;
+    unsigned char* decrypted_msg = NULL;
     if(verify_and_decrypt_msg(command, bank->key, &decrypted_msg) == 1){
         ////printf("received:%s\ndecrypted successfully:%s", command, decrypted_msg);
     } else {
         ////printf("hmacs don't match\n");
     }
 	
+    printf("bank received dmsg: %s\n", decrypted_msg);
+
     strtok(decrypted_msg, "\n");
 
     char copy_of_dmsg[strlen(decrypted_msg)+1];
@@ -216,18 +222,33 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
     int numArgs = 0;
     numArgs = tokenize_command(copy_of_dmsg, &command_tokens);
 
-    if(strcmp("deposit",command_tokens[0]) == 0){
+    if(strcmp("withdraw",command_tokens[0]) == 0){
         if(numArgs == 3 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0
             && compare_str_to_regex(command_tokens[2],"[[:digit:]]+") > 0) {
+            int cur_bal = atoi(hash_table_find(bank->ht_bal, command_tokens[1]));
+            int withdrawing = atoi(command_tokens[2]);
 
+            char ret_str[26];
+
+            if(cur_bal - withdrawing >= 0){
+                cur_bal = cur_bal - withdrawing;
+                char *amt = NULL;
+                asprintf(&amt, "%d", cur_bal);
+                hash_table_add(bank->ht_bal, command_tokens[1], amt);
+                sprintf(ret_str, "%d dispensed\n", withdrawing);
+                bank_respond_encrypted(bank, ret_str);
+            } else {
+                sprintf(ret_str, "Insufficient funds\n");
+                bank_respond_encrypted(bank, ret_str);
+            }
         } else {
-            printf("Usage:  deposit <user-name> <amt>\n");
+            
         }
     } else if(strcmp("balance",command_tokens[0]) == 0){
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
 
         } else {
-            printf("Usage:  balance <user-name>\n");
+            printf("Usage: balance <user-name>\n");
         }
     } else if(strcmp("begin-session",command_tokens[0]) == 0){
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
@@ -239,10 +260,11 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
                 bank_respond_encrypted(bank, iv_to_send);
             }
         } else {
-            printf("Usage:  balance <user-name>\n");
+            printf("Usage: balance <user-name>\n");
         }
     } else{
         printf("Invalid command\n");
+        bank_respond_encrypted(bank, "invalid");
         dprint("Invalid command: %s", decrypted_msg);
     }
 
