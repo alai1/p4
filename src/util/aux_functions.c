@@ -113,7 +113,7 @@ int encrypt_stuff(unsigned char *plaintext, int plaintext_len, unsigned char *ke
   /* Finalise the encryption. Further ciphertext bytes may be written at
    * this stage.
    */
-  if(1 != EVP_EncryptFinal_ex(ctx, ciphertext + len, &len)) printf("encrypt update failed\n");
+  if(1 != EVP_EncryptFinal_ex(ctx, ciphertext + len, &len)) printf("encrypt final failed\n");
 
   ciphertext_len += len;
 
@@ -146,14 +146,18 @@ int decrypt_stuff(unsigned char *ciphertext, int ciphertext_len, unsigned char *
   /* Provide the message to be decrypted, and obtain the plaintext output.
    * EVP_DecryptUpdate can be called multiple times if necessary
    */
-  if(1 != EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertext_len))
-    printf("decryptupdate failed\n");
+  if(1 != EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertext_len)){
+    printf("decryptupdate failed!\n");
+    printf("#failure# ciphertext: %s\n",ciphertext);
+    printf("#failure# ciphertext_len: %d\n",ciphertext_len);
+    printf("#failure# plaintext: %s\n",plaintext);
+  }
   plaintext_len = len;
 
   /* Finalise the decryption. Further plaintext bytes may be written at
    * this stage.
    */
-  if(1 != EVP_DecryptFinal_ex(ctx, plaintext + len, &len)) printf("decrypt update failed\n");
+  if(1 != EVP_DecryptFinal_ex(ctx, plaintext + len, &len)) printf("decrypt final failed\n");
   plaintext_len += len;
 
   /* Clean up */

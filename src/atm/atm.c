@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include "aux_functions.h"
 
-
+#define insane_free(p) { free(p); p = 0; }
 
 
 int tokenize_command(char *str, char ***argsOut){
@@ -186,10 +186,12 @@ void atm_process_command(ATM *atm, char *command)
                             atm->cur_user = allocd_cur_user;
                         } else {
                             printf("Not authorized\n");
+                            printf("hashed len:%d\n", strlen(hashed));
+                            printf("hashed card_contents:%d\n", strlen(card_contents));
                         }
 
                         insane_free(hashed);
-                        insane_free(card_contents);
+                        free(card_contents);
                     }
 
                 } else {
