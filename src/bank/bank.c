@@ -223,7 +223,32 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
                 printf("$%d\n", cur_bal);
             }
         } else {
-            printf("Usage: balance <user-name>");
+            printf("Usage: balance <user-name>\n");
+        }
+    } else if(strcmp("withdraw", command_tokens[0]) == 0) {
+        if(numArgs == 3 && compare_str_to_regex(command_tokens[1], "[a-zA-Z]+") > 0 && compare_str_to_regex(command_tokens[2], "[0-9]+") > 0) {
+
+            int amt = atoi(command_tokens[2]);
+            int cur_bal = atoi(hash_table_find(bank->ht_bal, command_tokens[1]));
+
+            if(cur_bal - amt < 0) {
+                printf("Insufficient funds\n");
+            } else {
+                int new_bal = cur_bal - amt;
+
+                char *alocd_bal = NULL;
+                asprintf(&alocd_bal, "%d", new_bal);
+                char*alocd_user = NULL;
+                asprintf(&alocd_user, "%s", command_tokens[1]);
+
+                hash_table_del(bank->ht_bal, command_tokens[1]);
+                hash_table_add(bank->ht_bal, alocd_user, alocd_bal);
+
+                printf("$%d dispensed\n", amt);
+            }
+
+        } else {
+            printf("Usage: withdraw <amt>\n");
         }
     } else {
         printf("Invalid command\n");
@@ -245,14 +270,14 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
     unsigned char* received_message = NULL;
     unsigned char* decrypted_msg = NULL;
     if(verify_and_decrypt_msg(command, bank->key, &decrypted_msg) == 1){
-        printf("received:%s(len: %d)\ndecrypted successfully:%s\n", command, strlen(command), decrypted_msg);
+        //printf("received:%s(len: %d)\ndecrypted successfully:%s\n", command, strlen(command), decrypted_msg);
     } else {
         printf("couldn't decrypt:%s (len: %d)\n", command, strlen(command));
         bank_respond_encrypted(bank, "null decrypted message");
         return;
     }
 	
-    printf("bank received dmsg: %s\n", decrypted_msg);
+    //printf("bank received dmsg: %s\n", decrypted_msg);
 
     strtok(decrypted_msg, "\n");
 
