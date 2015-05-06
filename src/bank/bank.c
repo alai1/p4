@@ -192,34 +192,38 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
     } else if(strcmp("deposit", command_tokens[0]) == 0 ) {
         if(numArgs == 3 && compare_str_to_regex(command_tokens[1], "[a-zA-Z]+") > 0 && compare_str_to_regex(command_tokens[2], "[0-9]+") > 0) {
 
-            int amt = atoi(command_tokens[2]);
-            int cur_bal = atoi(hash_table_find(bank->ht_bal, command_tokens[1]));
-
-            if(cur_bal == NULL) {
+            if(hash_table_find(bank->ht_bal, command_tokens[1]) == NULL) {
                 printf("No such user\n");
-            } else if(amt > INT_MAX) {
-                printf("Too rich for this program\n");
             } else {
-                int new_bal = amt + cur_bal;
 
-                char *alocd_bal = NULL;
-                asprintf(&alocd_bal, "%d", new_bal);
-                char*alocd_user = NULL;
-                asprintf(&alocd_user, "%s", command_tokens[1]);
+                char *ptr;
+                long amt = strtol(command_tokens[2], &ptr, 10);
+                int cur_bal = atoi(hash_table_find(bank->ht_bal, command_tokens[1]));
 
-                hash_table_del(bank->ht_bal, command_tokens[1]);
-                hash_table_add(bank->ht_bal, alocd_user, alocd_bal);
-                printf("$%d deposited\n", amt);
+                if(amt + cur_bal >= INT_MAX || amt + cur_bal < 0) {
+                printf("Too rich for this program\n");
+                } else {
+                    int new_bal = amt + cur_bal;
+
+                    char *alocd_bal = NULL;
+                    asprintf(&alocd_bal, "%d", new_bal);
+                    char*alocd_user = NULL;
+                    asprintf(&alocd_user, "%s", command_tokens[1]);
+
+                    hash_table_del(bank->ht_bal, command_tokens[1]);
+                    hash_table_add(bank->ht_bal, alocd_user, alocd_bal);
+                    printf("$%d deposited\n", amt);
+                }
 
             }
         }
     } else if(strcmp("balance", command_tokens[0])== 0) {
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1], "[a-zA-Z]+") > 0) {
-            int cur_bal = atoi(hash_table_find(bank->ht_bal, command_tokens[1]));
 
-            if(cur_bal == NULL) {
+            if(hash_table_find(bank->ht_bal, command_tokens[1]) == NULL) {
                 printf("No such user\n");
             } else {
+                int cur_bal = atoi(hash_table_find(bank->ht_bal, command_tokens[1]));
                 printf("$%d\n", cur_bal);
             }
         } else {
@@ -228,7 +232,8 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
     } else if(strcmp("withdraw", command_tokens[0]) == 0) {
         if(numArgs == 3 && compare_str_to_regex(command_tokens[1], "[a-zA-Z]+") > 0 && compare_str_to_regex(command_tokens[2], "[0-9]+") > 0) {
 
-            int amt = atoi(command_tokens[2]);
+            char *ptr;
+            long amt = strtol(command_tokens[2], &ptr, 10);
             int cur_bal = atoi(hash_table_find(bank->ht_bal, command_tokens[1]));
 
             if(cur_bal - amt < 0) {
@@ -309,7 +314,7 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
                 bank_respond_encrypted(bank, ret_str);
             }
         } else {
-            
+            printf("Usage: withdraw <username> <amt>\n");
         }
     } else if(strcmp("balance",command_tokens[0]) == 0){
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
