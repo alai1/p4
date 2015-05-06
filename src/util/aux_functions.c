@@ -18,6 +18,19 @@
 #define MAX_OUTPUT 20
 #define DEBUG_MODE 1
 
+void print_bytes(const void *object, size_t size)
+{
+  size_t i;
+
+  printf("[ ");
+  for(i = 0; i < size; i++)
+  {
+    printf("%02x ", ((const unsigned char *) object)[i] & 0xff);
+  }
+  printf("]\n");
+}
+
+
 void dprint(const char *format, ...){
     char * concat = NULL;
     asprintf(&concat, "%s%s", "¯\\_(ツ)_/¯", format);
@@ -177,95 +190,115 @@ int decrypt_stuff(unsigned char *ciphertext, int ciphertext_len, unsigned char *
 int compose_message(unsigned char *plaintext, int plaintext_len, unsigned char *key,
   unsigned char *iv, unsigned char **composed_message){
 
-    ////printf("plaintext to encrypt: %s\n", plaintext);
+    char * curr = NULL;
 
     unsigned char ciphertext[2048] = {0};
     int ciphertext_len = encrypt_stuff(plaintext, plaintext_len, key, iv, ciphertext);
 
- 	ciphertext[ciphertext_len] = '\0';
 
-    ////printf("ciphertext: %s\n", ciphertext);
+    unsigned char hmac[32] = {0};
+    int hmacLen = 0;
+
+    char * cipher_and_iv = NULL;
+    cipher_and_iv = calloc(1, ciphertext_len + 16);
+
+    printf("ciphertext:\n");
+    print_bytes(ciphertext, ciphertext_len);
+    printf("iv:\n");
+    print_bytes(iv, 16);
+
+    memcpy(cipher_and_iv, ciphertext, ciphertext_len);
+    memcpy(cipher_and_iv + ciphertext_len, iv, 16);
+
+    printf("cipher_and_iv:\n");
+    print_bytes(cipher_and_iv, ciphertext_len + 16);
+
+    HMAC(EVP_sha256(), key, 32, cipher_and_iv, ciphertext_len + 16, hmac, &hmacLen);
+
+
+    printf("hmac:\n");
+    print_bytes(hmac, hmacLen);
 
     /*HMAC(AES_256_CBC(p,k,iv);iv);AES_256_CBC(p,k,iv);iv
     
-     \____________32_____________/1\__ciphertext_len_/1\32      
-
+     \____________32_____________/1\__ciphertext_len_/1\16      
     */
-    //unsigned char composed[32 + 1 + ciphertext_len + 1 + 32];
-    unsigned char* composed = NULL;
 
-    //unsigned char* hmac;
+    int composed_len = sizeof(hmacLen) + hmacLen + sizeof(ciphertext_len) + ciphertext_len + 16;
+    char *composed = NULL;
+    composed = calloc(1, composed_len);
 
-    char * data = NULL;
-    printf("plaintext to encrypt: %s|||\n", plaintext);
-    printf("ciphertext: %s||| \n", ciphertext);
-    printf("iv: %s|||\n",iv);
-    asprintf(&data, "%s%s%s", ciphertext, "DELIMITER", iv);
+    printf("after calloc composed, composed is %s", composed == NULL ? "null" : "not null");
+    printf("composed_len is %d\n", composed_len);
+    printf("hmac_len is %d\n", hmacLen);
 
-    ////printf("cipher semi iv: %s\n", data);
+    memcpy(composed, hmacLen, sizeof(int));
+    printf("a\n");
+    memcpy(composed + sizeof(hmacLen), hmac, hmacLen);
+    printf("b\n");
+    memcpy(composed + sizeof(hmacLen) + hmacLen, ciphertext_len, sizeof(ciphertext_len));
+    printf("c\n");
+    memcpy(composed + sizeof(hmacLen) + hmacLen + sizeof(ciphertext_len), ciphertext, ciphertext_len);
+    printf("d\n");
+    memcpy(composed + sizeof(hmacLen) + hmacLen + sizeof(ciphertext_len) + ciphertext_len, iv, 16);
+    printf("e\n");
 
-    unsigned char hmac[33] = {0};
-    int iLen;
-
-    ////printf("using key:%s\n", key);
-    HMAC(EVP_sha256(), key, 32, data, strlen(data), hmac, &iLen);
-
-    hmac[iLen] = '\0';
-
-    printf("cipher semi iv:%s\n", data);
-    printf("hmac(cipher semi iv):%s\n", hmac);
-
-    asprintf(&composed, "%d%s%s%s%s",ciphertext_len, "DELIMITER", hmac,"DELIMITER",data);
-    //cipherlenDELIMITERhmacDELIMITERciphertextDELMITERiv
-
-    insane_free(data);
+    printf("after memcpy composed\n");
 
     *composed_message = composed;
 
-    printf("composed message:%s len(%d)\n", *composed_message, strlen(*composed_message));
+    printf("composed:\n");
+    print_bytes(composed, composed_len);
 
-    return strlen(*composed_message);
+    return composed_len;
 
 }
 
 int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, unsigned char **decrypted){
 
-    ////printf("composed_message: %s\n", composed_message);
+    int expected_hmac_len = 0;
+    unsigned char *expected_hmac = NULL;
+    int ciphertext_len = 0;
+    unsigned char *ciphertext = NULL;
+    unsigned char *iv = NULL;
 
-    char **msg_parts = {0};
-    int num_msg_parts = 0;
-    msg_parts = str_split(composed_message, "DELIMITER");
+    // printf("about to verify and decrypt:\n");
+    // print_bytes(composed_message, composed_len);
 
-    int ciphertext_len = atoi(msg_parts[0]);
-    char *expected_hmac = msg_parts[1];
-    char *ciphertext = msg_parts[2];
-    char *iv = msg_parts[3];
-
-    printf("ciphertext len: %d\n", ciphertext_len);
-    printf("expected_hmac: %s\n", expected_hmac);
-    printf("ciphertext: %s\n", ciphertext);
-    printf("iv: %s\n", iv);
+    char *curr = composed_message;
+    memcpy(&expected_hmac_len, curr, sizeof(int));
+    curr += sizeof(int);
+    memcpy(expected_hmac, curr, expected_hmac_len);
+    curr += expected_hmac_len;
+    memcpy(&ciphertext_len, curr, sizeof(int));
+    curr += sizeof(int);
+    memcpy(ciphertext, curr, ciphertext_len);
+    curr += ciphertext_len;
+    memcpy(iv, curr, 16);
     
-    char * cipher_semi_iv = NULL;
-    asprintf(&cipher_semi_iv, "%s%s%s", ciphertext, "DELIMITER", iv);
+    printf("expected_hmac:\n");
+    print_bytes(expected_hmac, expected_hmac_len);
+    printf("ciphertext:\n");
+    print_bytes(ciphertext, ciphertext_len);
+    printf("iv:\n");
+    print_bytes(iv, 16);
 
-    printf("cipher_semi_iv: %s\n", cipher_semi_iv);
+    
+    char * cipher_and_iv = NULL;
+    cipher_and_iv = calloc(1, ciphertext_len + 16);
+    memcpy(cipher_and_iv, ciphertext, ciphertext_len);
+    memcpy(cipher_and_iv + ciphertext_len, iv, 16);
+
+    int hmacLen;
+    unsigned char computed_hmac[32] = {0};
+    HMAC(EVP_sha256(), key, 32, cipher_and_iv, ciphertext_len + 16, computed_hmac, &hmacLen);
+
+    printf("computed_hmac:\n");
+    print_bytes(computed_hmac, hmacLen);
 
 
-	//char someThingIsSeverelyBrokenInMemoryDontDelete[255] = {0};
 
-    unsigned char computed_hmac[33] = {0};
-    int iLen;
-    ////printf("using key:%s\n", key);
-    HMAC(EVP_sha256(), key, 32, cipher_semi_iv, strlen(cipher_semi_iv), computed_hmac, &iLen);
-
-    computed_hmac[iLen] = '\0';
-
-    printf("computed_hmac: %s\n", computed_hmac);
-
-    //insane_free(cipher_semi_iv);
-
-    if(strcmp(computed_hmac,expected_hmac) != 0){
+    if(memcmp(expected_hmac, computed_hmac, 32) != 0){
         ////printf("verify and decrypt fail! expected %s doesn't match computed_hmac %sfuck!\n", expected_hmac, computed_hmac);
         return -1;
     }

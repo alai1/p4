@@ -151,7 +151,9 @@ void atm_process_command(ATM *atm, char *command)
                 return;
             }
 
-            printf("reading card_contents: %s\ncardkeylen is %d",card_contents, strlen(card_contents));
+            printf("reading card_contents:\n");
+            print_bytes(card_contents, length);
+
 
             insane_free(card_file_name);
                 
