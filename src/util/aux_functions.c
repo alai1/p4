@@ -1,9 +1,17 @@
+
+#define _GNU_SOURCE
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <regex.h>
+#include <openssl/evp.h>
+#include <openssl/aes.h>
+#include <openssl/rand.h>
+#include <openssl/sha.h>
+#include <openssl/hmac.h>
 #include "aux_functions.h"
 
 
@@ -189,6 +197,9 @@ int compose_message(unsigned char *plaintext, int plaintext_len, unsigned char *
     //unsigned char* hmac;
 
     char * data = NULL;
+    printf("plaintext to encrypt: %s|||\n", plaintext);
+    printf("ciphertext: %s||| \n", ciphertext);
+    printf("iv: %s|||\n",iv);
     asprintf(&data, "%s%s%s", ciphertext, "DELIMITER", iv);
 
     ////printf("cipher semi iv: %s\n", data);
@@ -201,9 +212,11 @@ int compose_message(unsigned char *plaintext, int plaintext_len, unsigned char *
 
     hmac[iLen] = '\0';
 
-    ////printf("hmac(cipher semi iv):%s\n", hmac);
+    printf("cipher semi iv:%s\n", data);
+    printf("hmac(cipher semi iv):%s\n", hmac);
 
-    asprintf(&composed, "%s%s%s",hmac,"DELIMITER",data);
+    asprintf(&composed, "%d%s%s%s%s",ciphertext_len, "DELIMITER", hmac,"DELIMITER",data);
+    //cipherlenDELIMITERhmacDELIMITERciphertextDELMITERiv
 
     insane_free(data);
 
@@ -223,18 +236,20 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
     int num_msg_parts = 0;
     msg_parts = str_split(composed_message, "DELIMITER");
 
-    char *expected_hmac = msg_parts[0];
-    char *ciphertext = msg_parts[1];
-    char *iv = msg_parts[2];
+    int ciphertext_len = atoi(msg_parts[0]);
+    char *expected_hmac = msg_parts[1];
+    char *ciphertext = msg_parts[2];
+    char *iv = msg_parts[3];
 
-    ////printf("expected_hmac: %s\n", expected_hmac);
-    ////printf("ciphertext: %s\n", ciphertext);
-    ////printf("iv: %s\n", iv);
+    printf("ciphertext len: %d\n", ciphertext_len);
+    printf("expected_hmac: %s\n", expected_hmac);
+    printf("ciphertext: %s\n", ciphertext);
+    printf("iv: %s\n", iv);
     
     char * cipher_semi_iv = NULL;
     asprintf(&cipher_semi_iv, "%s%s%s", ciphertext, "DELIMITER", iv);
 
-    ////printf("cipher_semi_iv: %s\n", cipher_semi_iv);
+    printf("cipher_semi_iv: %s\n", cipher_semi_iv);
 
 
 	//char someThingIsSeverelyBrokenInMemoryDontDelete[255] = {0};
@@ -246,7 +261,7 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
 
     computed_hmac[iLen] = '\0';
 
-    ////printf("computed_hmac: %s\n", computed_hmac);
+    printf("computed_hmac: %s\n", computed_hmac);
 
     //insane_free(cipher_semi_iv);
 
@@ -257,7 +272,7 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
 
 
     unsigned char plaintext[2048] = {0};
-    int plaintext_len = decrypt_stuff(ciphertext, strlen(ciphertext), key, iv, plaintext);
+    int plaintext_len = decrypt_stuff(ciphertext, ciphertext_len, key, iv, plaintext);
 
     plaintext[plaintext_len] = '\0';
     
