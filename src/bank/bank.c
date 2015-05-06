@@ -78,7 +78,7 @@ void bank_respond_encrypted(Bank *bank, unsigned char* msg_in)
 
     unsigned char* composed_message;
 
-    unsigned char iv[16] = "";
+    unsigned char iv[16] = {0};
 
     if (!RAND_bytes(iv, sizeof iv)) {
         printf("Error creating IV\n");
@@ -98,7 +98,7 @@ void bank_send_rcv_encrypted(Bank *bank, unsigned char* msg_in, unsigned char** 
 
     unsigned char* composed_message;
 
-    unsigned char iv[16] = "";
+    unsigned char iv[16] = {0};
 
     if (!RAND_bytes(iv, sizeof iv)) {
         printf("Error creating IV\n");
@@ -124,7 +124,7 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
 
     strtok(command, "\n");
 
-    char **command_tokens = "";
+    char **command_tokens = {0};
     int numArgs = 0;
     numArgs = tokenize_command(command, &command_tokens);
 
@@ -141,7 +141,7 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
                 hash_table_add(bank->ht_bal, command_tokens[1], command_tokens[3]);
 
                 //printf("calc iv\n");
-                unsigned char iv[32] = "";
+                unsigned char iv[32] = {0};
 
                 if (!RAND_bytes(iv, sizeof iv)) {
                     printf("Error creating IV\n");
@@ -205,9 +205,11 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
     unsigned char* received_message = NULL;
     unsigned char* decrypted_msg = NULL;
     if(verify_and_decrypt_msg(command, bank->key, &decrypted_msg) == 1){
-        ////printf("received:%s\ndecrypted successfully:%s", command, decrypted_msg);
+        printf("received:%s(len: %d)\ndecrypted successfully:%s\n", command, strlen(command), decrypted_msg);
     } else {
-        ////printf("hmacs don't match\n");
+        printf("couldn't decrypt:%s (len: %d)\n", command, strlen(command));
+        bank_respond_encrypted(bank, "null decrypted message");
+        return;
     }
 	
     printf("bank received dmsg: %s\n", decrypted_msg);
@@ -218,7 +220,7 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
     strncpy(copy_of_dmsg,decrypted_msg,strlen(decrypted_msg));
     copy_of_dmsg[strlen(decrypted_msg)] = '\0';
 
-    char **command_tokens = "";
+    char **command_tokens = {0};
     int numArgs = 0;
     numArgs = tokenize_command(copy_of_dmsg, &command_tokens);
 

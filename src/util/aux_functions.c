@@ -25,7 +25,7 @@ void dprint(const char *format, ...){
 int compare_str_to_regex(char* str, const char *pattern){
     regex_t regex;
     int reti;
-    char msgbuf[100];
+    char msgbuf[100] = {0};
 
     /* Compile regular expression */
     reti = regcomp(&regex, pattern, REG_EXTENDED);
@@ -171,7 +171,7 @@ int compose_message(unsigned char *plaintext, int plaintext_len, unsigned char *
 
     ////printf("plaintext to encrypt: %s\n", plaintext);
 
-    unsigned char ciphertext[2048] = "\0";
+    unsigned char ciphertext[2048] = {0};
     int ciphertext_len = encrypt_stuff(plaintext, plaintext_len, key, iv, ciphertext);
 
  	ciphertext[ciphertext_len] = '\0';
@@ -184,16 +184,16 @@ int compose_message(unsigned char *plaintext, int plaintext_len, unsigned char *
 
     */
     //unsigned char composed[32 + 1 + ciphertext_len + 1 + 32];
-    unsigned char* composed;
+    unsigned char* composed = NULL;
 
     //unsigned char* hmac;
 
     char * data = NULL;
-    asprintf(&data, "%s%s%s", ciphertext, "POOPNUGGET", iv);
+    asprintf(&data, "%s%s%s", ciphertext, "DELIMITER", iv);
 
     ////printf("cipher semi iv: %s\n", data);
 
-    unsigned char hmac[32] = "\0";
+    unsigned char hmac[33] = {0};
     int iLen;
 
     ////printf("using key:%s\n", key);
@@ -203,11 +203,13 @@ int compose_message(unsigned char *plaintext, int plaintext_len, unsigned char *
 
     ////printf("hmac(cipher semi iv):%s\n", hmac);
 
-    asprintf(&composed, "%s%s%s",hmac,"POOPNUGGET",data);
+    asprintf(&composed, "%s%s%s",hmac,"DELIMITER",data);
+
+    insane_free(data);
 
     *composed_message = composed;
 
-    ////printf("composed message:%s\n", *composed_message);
+    printf("composed message:%s len(%d)\n", *composed_message, strlen(*composed_message));
 
     return strlen(*composed_message);
 
@@ -217,9 +219,9 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
 
     ////printf("composed_message: %s\n", composed_message);
 
-    char **msg_parts = "";
+    char **msg_parts = {0};
     int num_msg_parts = 0;
-    msg_parts = str_split(composed_message, "POOPNUGGET");
+    msg_parts = str_split(composed_message, "DELIMITER");
 
     char *expected_hmac = msg_parts[0];
     char *ciphertext = msg_parts[1];
@@ -230,14 +232,14 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
     ////printf("iv: %s\n", iv);
     
     char * cipher_semi_iv = NULL;
-    asprintf(&cipher_semi_iv, "%s%s%s", ciphertext, "POOPNUGGET", iv);
+    asprintf(&cipher_semi_iv, "%s%s%s", ciphertext, "DELIMITER", iv);
 
     ////printf("cipher_semi_iv: %s\n", cipher_semi_iv);
 
 
-	char someThingIsSeverelyBrokenInMemoryDontDelete[255] = "";
+	//char someThingIsSeverelyBrokenInMemoryDontDelete[255] = {0};
 
-    unsigned char computed_hmac[32] = "\0";
+    unsigned char computed_hmac[33] = {0};
     int iLen;
     ////printf("using key:%s\n", key);
     HMAC(EVP_sha256(), key, 32, cipher_semi_iv, strlen(cipher_semi_iv), computed_hmac, &iLen);
@@ -246,18 +248,23 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
 
     ////printf("computed_hmac: %s\n", computed_hmac);
 
+    //insane_free(cipher_semi_iv);
+
     if(strcmp(computed_hmac,expected_hmac) != 0){
         ////printf("verify and decrypt fail! expected %s doesn't match computed_hmac %sfuck!\n", expected_hmac, computed_hmac);
         return -1;
     }
 
 
-    unsigned char plaintext[2048] = "\0";
+    unsigned char plaintext[2048] = {0};
     int plaintext_len = decrypt_stuff(ciphertext, strlen(ciphertext), key, iv, plaintext);
 
     plaintext[plaintext_len] = '\0';
     
-    *decrypted = plaintext;
+    char * al_plaintext = NULL;
+    asprintf(&al_plaintext, "%s", plaintext);
+
+    *decrypted = al_plaintext;
 
     return 1;
 }
@@ -270,19 +277,27 @@ example usage:
 
 void hash_pin(char *pin, char*iv, char **hash_out){
     char * data = NULL;
-    asprintf(&data, "%s%s%s", iv, ";", pin);
+    char * iterator = NULL;
+    if(asprintf(&data, "%s%s%s", iv, ";", pin) == -1){
+      printf("asprintf failed data:hash\n");
+    }
 
-    char obuf[33] = "\0";
+    char obuf[33] = {0};
 
     char *cur_hash;
 
     int z;
     for(z = 0; z < 7; z++){
         SHA256(data, strlen(data), obuf);
-        asprintf(&cur_hash, "%s", obuf);
+        if(asprintf(&cur_hash, "%s", obuf) == -1){
+          printf("asprintf failed curhash:hash_pin\n");
+        }
+        iterator = data;
         data = cur_hash;
+        insane_free(iterator);
     }
     asprintf(hash_out, "%s", cur_hash);
+    insane_free(data);
 }
 
 
