@@ -232,16 +232,11 @@ int compose_message(unsigned char *plaintext, int plaintext_len, unsigned char *
     printf("composed_len is %d\n", composed_len);
     printf("hmac_len is %d\n", hmacLen);
 
-    memcpy(composed, hmacLen, sizeof(int));
-    printf("a\n");
+    memcpy(composed, &hmacLen, sizeof(int));
     memcpy(composed + sizeof(hmacLen), hmac, hmacLen);
-    printf("b\n");
-    memcpy(composed + sizeof(hmacLen) + hmacLen, ciphertext_len, sizeof(ciphertext_len));
-    printf("c\n");
+    memcpy(composed + sizeof(hmacLen) + hmacLen, &ciphertext_len, sizeof(ciphertext_len));
     memcpy(composed + sizeof(hmacLen) + hmacLen + sizeof(ciphertext_len), ciphertext, ciphertext_len);
-    printf("d\n");
     memcpy(composed + sizeof(hmacLen) + hmacLen + sizeof(ciphertext_len) + ciphertext_len, iv, 16);
-    printf("e\n");
 
     printf("after memcpy composed\n");
 
