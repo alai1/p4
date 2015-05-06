@@ -150,42 +150,44 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
                     char*alocd_user = NULL;
                     asprintf(&alocd_user, "%s", command_tokens[1]);
 
-                //printf("calc iv\n");
-                unsigned char iv[32] = {0};
+                    hash_table_add(bank->ht_bal, alocd_user, alocd_bal);
 
-                if (!RAND_bytes(iv, sizeof iv)) {
-                    printf("Error creating IV\n");
+                    //printf("calc iv\n");
+                    unsigned char iv[32] = {0};
+
+                    if (!RAND_bytes(iv, sizeof iv)) {
+                        printf("Error creating IV\n");
+                    }
+
+                    char * alocd_iv = NULL;
+                    asprintf(&alocd_iv, "%s", iv);
+
+                    hash_table_add(bank->ht_salts, command_tokens[1], alocd_iv);
+
+                    //printf("calc hash\n");
+                    char *hash_out = NULL;
+                    hash_pin(command_tokens[2],alocd_iv,&hash_out);
+                    
+                    //printf("final hash: %s\n", hash_out);
+
+                    char * card_file_name = NULL;
+                    asprintf(&card_file_name, "%s%s", command_tokens[1], ".card");
+
+                    FILE *cardFile;
+                    cardFile = fopen(card_file_name, "w");
+
+                    int results = fputs(hash_out, cardFile);
+                    if (results == EOF) {
+                        printf("Error creating card file for user %s", command_tokens[1]);
+                        //TODO: ROLL BACK CHANGES!
+                    }
+                    fclose(cardFile);
+                    
+                    insane_free(hash_out);
+                    insane_free(card_file_name);
+
+                    printf("Created user %s\n", command_tokens[1]);
                 }
-
-                char * alocd_iv = NULL;
-                asprintf(&alocd_iv, "%s", iv);
-
-                hash_table_add(bank->ht_salts, command_tokens[1], alocd_iv);
-
-                //printf("calc hash\n");
-                char *hash_out = NULL;
-                hash_pin(command_tokens[2],alocd_iv,&hash_out);
-                
-                //printf("final hash: %s\n", hash_out);
-
-                char * card_file_name = NULL;
-                asprintf(&card_file_name, "%s%s", command_tokens[1], ".card");
-
-                FILE *cardFile;
-                cardFile = fopen(card_file_name, "w");
-
-                int results = fputs(hash_out, cardFile);
-                if (results == EOF) {
-                    printf("Error creating card file for user %s", command_tokens[1]);
-                    //TODO: ROLL BACK CHANGES!
-                }
-                fclose(cardFile);
-                
-                insane_free(hash_out);
-                insane_free(card_file_name);
-
-                printf("Created user %s\n", command_tokens[1]);
-                
 
             } else {
                 printf("Error: user %s already exists\n", command_tokens[1]);
@@ -319,7 +321,7 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
                 bank_respond_encrypted(bank, ret_str);
             }
         } else {
-            printf("Usage: withdraw <username> <amt>\n");
+            
         }
     } else if(strcmp("balance",command_tokens[0]) == 0){
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
