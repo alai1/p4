@@ -4,6 +4,7 @@
 #include "util/hash_table.h"
 #include <string.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <unistd.h>
 #include "aux_functions.h"
 
@@ -128,8 +129,6 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
     int numArgs = 0;
     numArgs = tokenize_command(command, &command_tokens);
 
-
-
     if(strcmp("create-user",command_tokens[0]) == 0){
         if(numArgs == 4 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0
             && compare_str_to_regex(command_tokens[2],"[0-9][0-9][0-9][0-9]") > 0
@@ -138,7 +137,13 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
             //printf("create-user\n");
 
             if(hash_table_find(bank->ht_bal, command_tokens[1]) == NULL){
-                hash_table_add(bank->ht_bal, command_tokens[1], command_tokens[3]);
+
+                char *alocd_bal = NULL;
+                asprintf(&alocd_bal, "%s", command_tokens[3]);
+                char*alocd_user = NULL;
+                asprintf(&alocd_user, "%s", command_tokens[1]);
+
+                hash_table_add(bank->ht_bal, alocd_user, alocd_bal);
 
                 //printf("calc iv\n");
                 unsigned char iv[32] = {0};
@@ -184,6 +189,38 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
         } else {
             printf("Usage: create-user <user-name> <pin> <balance>\n");
         }
+    } else if(strcmp("deposit", command_tokens[0]) == 0 ) {
+        if(numArgs == 3 && compare_str_to_regex(command_tokens[1], "[a-zA-Z]+") > 0 && compare_str_to_regex(command_tokens[2], "[0-9]+") > 0) {
+
+            printf("1\n");
+
+            int amt = atoi(command_tokens[2]);
+
+            printf("1.5\n");
+            int cur_bal = atoi(hash_table_find(bank->ht_bal, command_tokens[1]));
+            printf("2\n");
+
+            if(cur_bal == NULL) {
+                printf("No such user\n");
+            } else if(amt > INT_MAX) {
+                printf("Too rich for this program\n");
+            } else {
+                int new_bal = amt + cur_bal;
+
+                char *alocd_bal = NULL;
+                asprintf(&alocd_bal, "%d", new_bal);
+                char*alocd_user = NULL;
+                asprintf(&alocd_user, "%s", command_tokens[1]);
+
+                hash_table_del(bank->ht_bal, command_tokens[1]);
+                hash_table_add(bank->ht_bal, alocd_user, alocd_bal);
+                printf("$%d deposited\n", amt);
+
+                printf("new balance: $%s\n", hash_table_find(bank->ht_bal, command_tokens[1]));
+            }
+        } else {
+            printf("Usage: deposit <user-name> <amt>\n");
+        }
     } else{
         printf("Invalid command\n");
     }
@@ -192,7 +229,6 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
 
 void bank_process_remote_command(Bank *bank, char *command, size_t len)
 {
-
 
     // TODO: Implement the bank side of the ATM-bank protocol
 
