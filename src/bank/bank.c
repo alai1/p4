@@ -138,12 +138,17 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
 
             if(hash_table_find(bank->ht_bal, command_tokens[1]) == NULL){
 
-                char *alocd_bal = NULL;
-                asprintf(&alocd_bal, "%s", command_tokens[3]);
-                char*alocd_user = NULL;
-                asprintf(&alocd_user, "%s", command_tokens[1]);
+                char *ptr;
+                long amt = strtol(command_tokens[3], &ptr, 10);
 
-                hash_table_add(bank->ht_bal, alocd_user, alocd_bal);
+                if(amt > INT_MAX) {
+                    printf("Usage: create-user <user-name> <pin> <balance>\n");
+                } else {
+
+                    char *alocd_bal = NULL;
+                    asprintf(&alocd_bal, "%s", command_tokens[3]);
+                    char*alocd_user = NULL;
+                    asprintf(&alocd_user, "%s", command_tokens[1]);
 
                 //printf("calc iv\n");
                 unsigned char iv[32] = {0};
