@@ -192,13 +192,8 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
     } else if(strcmp("deposit", command_tokens[0]) == 0 ) {
         if(numArgs == 3 && compare_str_to_regex(command_tokens[1], "[a-zA-Z]+") > 0 && compare_str_to_regex(command_tokens[2], "[0-9]+") > 0) {
 
-            printf("1\n");
-
             int amt = atoi(command_tokens[2]);
-
-            printf("1.5\n");
             int cur_bal = atoi(hash_table_find(bank->ht_bal, command_tokens[1]));
-            printf("2\n");
 
             if(cur_bal == NULL) {
                 printf("No such user\n");
@@ -216,12 +211,21 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
                 hash_table_add(bank->ht_bal, alocd_user, alocd_bal);
                 printf("$%d deposited\n", amt);
 
-                printf("new balance: $%s\n", hash_table_find(bank->ht_bal, command_tokens[1]));
+            }
+        }
+    } else if(strcmp("balance", command_tokens[0])== 0) {
+        if(numArgs == 2 && compare_str_to_regex(command_tokens[1], "[a-zA-Z]+") > 0) {
+            int cur_bal = atoi(hash_table_find(bank->ht_bal, command_tokens[1]));
+
+            if(cur_bal == NULL) {
+                printf("No such user\n");
+            } else {
+                printf("$%d\n", cur_bal);
             }
         } else {
-            printf("Usage: deposit <user-name> <amt>\n");
+            printf("Usage: balance <user-name>");
         }
-    } else{
+    } else {
         printf("Invalid command\n");
     }
    
