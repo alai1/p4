@@ -98,6 +98,8 @@ void bank_send_rcv_encrypted(Bank *bank, unsigned char* msg_in, unsigned char** 
     char recvline[10000];
     int n;
 
+    printf("bank_send_rcv_encrypted\n");
+
     unsigned char* composed_message;
 
     unsigned char iv[16] = {0};
@@ -294,7 +296,7 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
         return;
     }
 	
-    //printf("bank received dmsg: %s\n", decrypted_msg);
+    printf("bank received dmsg: %s\n", decrypted_msg);
 
     strtok(decrypted_msg, "\n");
 
@@ -306,34 +308,57 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
     int numArgs = 0;
     numArgs = tokenize_command(copy_of_dmsg, &command_tokens);
 
+    printf("command_tokens[0]: %s\n", command_tokens[0]);
+
     if(strcmp("withdraw",command_tokens[0]) == 0){
+        char *bal_to_send = NULL;
         if(numArgs == 3 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0
             && compare_str_to_regex(command_tokens[2],"[[:digit:]]+") > 0) {
+
+            char *ptr;
+            long amt = strtol(command_tokens[2], &ptr, 10);
             int cur_bal = atoi(hash_table_find(bank->ht_bal, command_tokens[1]));
-            int withdrawing = atoi(command_tokens[2]);
 
-            char ret_str[26];
-
-            if(cur_bal - withdrawing >= 0){
-                cur_bal = cur_bal - withdrawing;
-                char *amt = NULL;
-                asprintf(&amt, "%d", cur_bal);
-                hash_table_add(bank->ht_bal, command_tokens[1], amt);
-                sprintf(ret_str, "%d dispensed\n", withdrawing);
-                bank_respond_encrypted(bank, ret_str);
+            if(hash_table_find(bank->ht_bal, command_tokens[1]) == NULL) {
+                asprintf(&bal_to_send, "No such user");
             } else {
-                sprintf(ret_str, "Insufficient funds\n");
-                bank_respond_encrypted(bank, ret_str);
+                if(cur_bal - amt < 0) {
+                    asprintf(&bal_to_send, "Insufficient funds");
+                } else {
+                    int new_bal = cur_bal - amt;
+
+                    char *alocd_bal = NULL;
+                    asprintf(&alocd_bal, "%d", new_bal);
+                    char*alocd_user = NULL;
+                    asprintf(&alocd_user, "%s", command_tokens[1]);
+
+                    hash_table_del(bank->ht_bal, command_tokens[1]);
+                    hash_table_add(bank->ht_bal, alocd_user, alocd_bal);
+                    printf("h\n");
+                    asprintf(&bal_to_send, "$%d dispensed", amt);
+                    printf("h2\n");
+                }
             }
         } else {
-            
+            asprintf(&bal_to_send, "Usage: withdraw <amt>");
         }
+        printf("i\n");
+        bank_respond_encrypted(bank, bal_to_send);
     } else if(strcmp("balance",command_tokens[0]) == 0){
+        char *bal_to_send = NULL;
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
+            if(hash_table_find(bank->ht_bal, command_tokens[1]) == NULL) {
+                asprintf(&bal_to_send, "No such user");
+            } else {
+                int cur_bal = atoi(hash_table_find(bank->ht_bal, command_tokens[1]));
 
+                asprintf(&bal_to_send, "$%s", hash_table_find(bank->ht_bal,command_tokens[1]));
+                bank_respond_encrypted(bank, bal_to_send);
+            }
         } else {
-            printf("Usage: balance <user-name>\n");
+            asprintf(&bal_to_send, "Usage: balance <user-name>");
         }
+        bank_respond_encrypted(bank, bal_to_send);
     } else if(strcmp("begin-session",command_tokens[0]) == 0){
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
             if(hash_table_find(bank->ht_bal, command_tokens[1]) == NULL){

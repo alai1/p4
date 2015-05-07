@@ -175,7 +175,6 @@ void atm_process_command(ATM *atm, char *command)
                     verify_and_decrypt_msg(received_message, atm->key, &decrypted_msg);
                     printf("decrypted_msg%s\n", decrypted_msg);
 
-
                     if(strcmp(decrypted_msg, "No such user\n") == 0) {
                         printf("No such user\n");
                     } else {
@@ -210,7 +209,7 @@ void atm_process_command(ATM *atm, char *command)
                     printf("Not authorized\n");
                 }
             }
-                        insane_free(card_contents);
+            insane_free(card_contents);
         } else {
             printf("Usage: begin-session <user-name>\n");
         }
@@ -228,9 +227,8 @@ void atm_process_command(ATM *atm, char *command)
 
                 verify_and_decrypt_msg(received_message, atm->key, &decrypted_msg);
 
-                if(compare_str_to_regex(decrypted_msg, "[0-9]+")) {
-                    printf("$%d\n", decrypted_msg);
-                }
+                printf("%s\n", decrypted_msg);
+
                 insane_free(decrypted_msg);
             }
         } else {

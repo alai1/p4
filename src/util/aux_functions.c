@@ -320,7 +320,7 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
     char * al_plaintext = NULL;
     asprintf(&al_plaintext, "%s", plaintext);
 
-    printf("v&d plaintext%s\n", plaintext);
+    printf("v&d plaintext: %s\n", plaintext);
 
     *decrypted = al_plaintext;
 
