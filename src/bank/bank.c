@@ -93,12 +93,11 @@ void bank_respond_encrypted(Bank *bank, unsigned char* msg_in)
 
 }
 
-void bank_send_rcv_encrypted(Bank *bank, unsigned char* msg_in, unsigned char** received)
+int bank_send_rcv_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** received)
 {
     char recvline[10000];
     int n;
-
-    printf("bank_send_rcv_encrypted\n");
+    int composed_message_len = 0;
 
     unsigned char* composed_message;
 
@@ -108,18 +107,16 @@ void bank_send_rcv_encrypted(Bank *bank, unsigned char* msg_in, unsigned char** 
         printf("Error creating IV\n");
     }
 
-    compose_message(msg_in, strlen(msg_in), bank->key, iv, &composed_message);
+    printf("bank sending plaintext: %s\n", msg_in);
+    composed_message_len = compose_message(msg_in, strlen(msg_in), bank->key, iv, &composed_message);
 
-    ////printf("bank ready to send:%s\n", composed_message);
+    bank_send(bank, composed_message, composed_message_len);
 
-    bank_send(bank, composed_message, strlen(composed_message));
-
-    ////printf("bank sent:%s\n", composed_message);
     n = bank_recv(bank,recvline,10000);
-    recvline[n]=0;
-    ////printf("bank received %d bytes\n", n);
-    ////printf("bank recvline:%s\n", recvline);
+
     *received = recvline;
+    return n;
+
 }
 
 
@@ -352,7 +349,7 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
             } else {
                 int cur_bal = atoi(hash_table_find(bank->ht_bal, command_tokens[1]));
 
-                asprintf(&bal_to_send, "$%s", hash_table_find(bank->ht_bal,command_tokens[1]));
+                asprintf(&bal_to_send, "$%d", cur_bal);
                 bank_respond_encrypted(bank, bal_to_send);
             }
         } else {

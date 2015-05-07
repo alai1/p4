@@ -166,14 +166,7 @@ void atm_process_command(ATM *atm, char *command)
                     
 
                     recvd_len = atm_send_rcv_encrypted(atm, command, &received_message);
-
-
-                    printf("atm begin-session received after send 1:\n");
-                    print_bytes(received_message, recvd_len);
-
-                    printf("about to verify_and_decrypt_msg\n");
                     verify_and_decrypt_msg(received_message, atm->key, &decrypted_msg);
-                    printf("decrypted_msg%s\n", decrypted_msg);
 
                     if(strcmp(decrypted_msg, "No such user\n") == 0) {
                         printf("No such user\n");
@@ -183,13 +176,8 @@ void atm_process_command(ATM *atm, char *command)
                         char *hashed = NULL;
                         hash_pin(pin, received_iv, &hashed);
 
-                        printf("hashed: %s\n", hashed);
-                        printf("card_contents: %s\n", card_contents);
-
-                        if(strcmp(hashed, card_contents) == 0) {
+                        if(memcmp(hashed, card_contents, 32) == 0) {
                             printf("Authorized\n");
-                            printf("hashed len:%d\n", strlen(hashed));
-                            printf("card_contents len:%d\n", strlen(card_contents));
 
                             char *allocd_cur_user = NULL;
                             asprintf(&allocd_cur_user, "%s", command_tokens[1]);
@@ -197,8 +185,10 @@ void atm_process_command(ATM *atm, char *command)
                             atm->cur_user = allocd_cur_user;
                         } else {
                             printf("Not authorized\n");
-                            printf("hashed len:%d\n", strlen(hashed));
-                            printf("card_contents len:%d\n", strlen(card_contents));
+                            printf("hashed:\n");
+                            print_bytes(hashed, 32);
+                            printf("card_contents%d\n");
+                            print_bytes(card_contents, 32);
                         }
 
                         insane_free(hashed);
