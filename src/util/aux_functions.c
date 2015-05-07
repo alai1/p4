@@ -261,23 +261,36 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
     // print_bytes(composed_message, composed_len);
 
     char *curr = composed_message;
+
     memcpy(&expected_hmac_len, curr, sizeof(int));
     curr += sizeof(int);
+    printf("v&d expected_hmac_len: %d\n", expected_hmac_len);
+
+
+    expected_hmac = calloc(1, expected_hmac_len);
     memcpy(expected_hmac, curr, expected_hmac_len);
     curr += expected_hmac_len;
+
+    printf("v&d expected_hmac:\n");
+    print_bytes(expected_hmac, expected_hmac_len);
+
     memcpy(&ciphertext_len, curr, sizeof(int));
     curr += sizeof(int);
+
+
+    ciphertext = calloc(1, ciphertext_len);
     memcpy(ciphertext, curr, ciphertext_len);
     curr += ciphertext_len;
-    memcpy(iv, curr, 16);
-    
-    printf("expected_hmac:\n");
-    print_bytes(expected_hmac, expected_hmac_len);
-    printf("ciphertext:\n");
-    print_bytes(ciphertext, ciphertext_len);
-    printf("iv:\n");
-    print_bytes(iv, 16);
 
+    printf("v&d ciphertext:\n");
+    print_bytes(ciphertext, ciphertext_len);
+
+    iv = calloc(1, 16);
+    memcpy(iv, curr, 16);
+
+    printf("v&d iv:\n");
+    print_bytes(iv, 16);
+    
     
     char * cipher_and_iv = NULL;
     cipher_and_iv = calloc(1, ciphertext_len + 16);
@@ -288,7 +301,7 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
     unsigned char computed_hmac[32] = {0};
     HMAC(EVP_sha256(), key, 32, cipher_and_iv, ciphertext_len + 16, computed_hmac, &hmacLen);
 
-    printf("computed_hmac:\n");
+    printf("v&d computed_hmac:\n");
     print_bytes(computed_hmac, hmacLen);
 
 
@@ -306,6 +319,8 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
     
     char * al_plaintext = NULL;
     asprintf(&al_plaintext, "%s", plaintext);
+
+    printf("v&d plaintext%s\n", plaintext);
 
     *decrypted = al_plaintext;
 

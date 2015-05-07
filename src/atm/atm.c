@@ -71,10 +71,11 @@ ssize_t atm_recv(ATM *atm, char *data, size_t max_data_len)
     return recvfrom(atm->sockfd, data, max_data_len, 0, NULL, NULL);
 }
 
-void atm_send_rcv_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** received)
+int atm_send_rcv_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** received)
 {
     char recvline[10000];
     int n;
+    int composed_message_len = 0;
 
     unsigned char* composed_message;
 
@@ -85,21 +86,20 @@ void atm_send_rcv_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** rec
     }
 
     printf("atm sending plaintext: %s\n", msg_in);
-    compose_message(msg_in, strlen(msg_in), atm->key, iv, &composed_message);
+    composed_message_len = compose_message(msg_in, strlen(msg_in), atm->key, iv, &composed_message);
 
-    atm_send(atm, composed_message, strlen(composed_message));
+    atm_send(atm, composed_message, composed_message_len);
 
     n = atm_recv(atm,recvline,10000);
-    recvline[n]='\0';
 
-    char *al_recv = NULL;
-    asprintf(&al_recv, "%s", recvline);
+    *received = recvline;
+    return n;
 
-    *received = al_recv;
 }
 
 void atm_process_command(ATM *atm, char *command)
 {
+    int recvd_len = 0;
     strtok(command, "\n");
 
     char copy_of_command[strlen(command)+1];
@@ -164,16 +164,17 @@ void atm_process_command(ATM *atm, char *command)
                 char pin[5];
                 if(fgets(pin, 5, stdin) != NULL && compare_str_to_regex(pin, "[0-9][0-9][0-9][0-9]")) {
                     
-                    atm_send_rcv_encrypted(atm, command, &received_message);
+
+                    recvd_len = atm_send_rcv_encrypted(atm, command, &received_message);
 
 
-                    //receive either "No such user" or the IV for the user
+                    printf("atm begin-session received after send 1:\n");
+                    print_bytes(received_message, recvd_len);
 
                     printf("about to verify_and_decrypt_msg\n");
                     verify_and_decrypt_msg(received_message, atm->key, &decrypted_msg);
                     printf("decrypted_msg%s\n", decrypted_msg);
 
-                    insane_free(received_message);
 
                     if(strcmp(decrypted_msg, "No such user\n") == 0) {
                         printf("No such user\n");

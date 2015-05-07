@@ -15,8 +15,8 @@ bin/atm : atm/atm-main.c atm/atm.c util/aux_functions.c
 bin/bank : bank/bank-main.c bank/bank.c util/hash_table.c util/list.c util/aux_functions.c
 	${CC} ${CFLAGS} bank/bank.c bank/bank-main.c util/hash_table.c util/list.c util/aux_functions.c -o bin/bank ${LIBS}
 
-bin/router : router/router-main.c router/router.c
-	${CC} ${CFLAGS} router/router.c router/router-main.c -o bin/router ${LIBS}
+bin/router : router/router-main.c router/router.c util/aux_functions.c
+	${CC} ${CFLAGS} router/router.c router/router-main.c util/aux_functions.c -o bin/router ${LIBS}
 
 init : init.c
 	${CC} ${CFLAGS} init.c -o init $(LIBS)

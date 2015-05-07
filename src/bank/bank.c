@@ -76,6 +76,7 @@ void bank_respond_encrypted(Bank *bank, unsigned char* msg_in)
 {
     char recvline[10000];
     int n;
+    int composed_message_len = 0;
 
     unsigned char* composed_message;
 
@@ -85,11 +86,11 @@ void bank_respond_encrypted(Bank *bank, unsigned char* msg_in)
         printf("Error creating IV\n");
     }
 
-    compose_message(msg_in, strlen(msg_in), bank->key, iv, &composed_message);
+    printf("bank sending plaintext: %s\n", msg_in);
+    composed_message_len = compose_message(msg_in, strlen(msg_in), bank->key, iv, &composed_message);
 
-    ////printf("bank ready to send:%s\n", composed_message);
+    bank_send(bank, composed_message, composed_message_len);
 
-    bank_send(bank, composed_message, strlen(composed_message));
 }
 
 void bank_send_rcv_encrypted(Bank *bank, unsigned char* msg_in, unsigned char** received)
@@ -281,6 +282,10 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
 
     unsigned char* received_message = NULL;
     unsigned char* decrypted_msg = NULL;
+
+    printf("encrypted command:\n");
+    print_bytes(command, len);
+
     if(verify_and_decrypt_msg(command, bank->key, &decrypted_msg) == 1){
         //printf("received:%s(len: %d)\ndecrypted successfully:%s\n", command, strlen(command), decrypted_msg);
     } else {
@@ -334,6 +339,7 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
             if(hash_table_find(bank->ht_bal, command_tokens[1]) == NULL){
                 bank_respond_encrypted(bank, "No such user\n");
             } else {
+                //MIGHT NOT WANT TO TREAT IV AS STRING
                 char * iv_to_send = NULL;
                 asprintf(&iv_to_send, "%s", hash_table_find(bank->ht_salts,command_tokens[1]));
                 bank_respond_encrypted(bank, iv_to_send);
