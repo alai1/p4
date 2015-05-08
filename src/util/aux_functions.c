@@ -62,11 +62,11 @@ int compare_str_to_regex(char* str, const char *pattern){
         // fprintf(stderr, "Match\n");
     }
     else if (reti == REG_NOMATCH) {
-        //fprintf(stderr, "%s does not match \n", str);
+        // fprintf(stderr, "%s does not match \n", str);
         return 0;
     }
     else {
-        // regerror(reti, &regex, msgbuf, sizeof(msgbuf));
+        regerror(reti, &regex, msgbuf, sizeof(msgbuf));
         // fprintf(stderr, "Regex match failed: %s\n", msgbuf);
         return 0;
     }
@@ -228,17 +228,11 @@ int compose_message(unsigned char *plaintext, int plaintext_len, unsigned char *
     char *composed = NULL;
     composed = calloc(1, composed_len);
 
-    // printf("after calloc composed, composed is %s", composed == NULL ? "null" : "not null");
-    // printf("composed_len is %d\n", composed_len);
-    // printf("hmac_len is %d\n", hmacLen);
-
     memcpy(composed, &hmacLen, sizeof(int));
     memcpy(composed + sizeof(hmacLen), hmac, hmacLen);
     memcpy(composed + sizeof(hmacLen) + hmacLen, &ciphertext_len, sizeof(ciphertext_len));
     memcpy(composed + sizeof(hmacLen) + hmacLen + sizeof(ciphertext_len), ciphertext, ciphertext_len);
     memcpy(composed + sizeof(hmacLen) + hmacLen + sizeof(ciphertext_len) + ciphertext_len, iv, 16);
-
-    // printf("after memcpy composed\n");
 
     *composed_message = composed;
 
@@ -312,15 +306,18 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
     }
 
 
-    unsigned char plaintext[2048] = {0};
+    unsigned char plaintext[320] = {0};
     int plaintext_len = decrypt_stuff(ciphertext, ciphertext_len, key, iv, plaintext);
+
+    //printf("plaintext raw\n");
+    //print_bytes(plaintext, 320);
 
     plaintext[plaintext_len] = '\0';
     
     char * al_plaintext = NULL;
     asprintf(&al_plaintext, "%s", plaintext);
 
-    // printf("v&d plaintext: %s\n", plaintext);
+    //// printf("v&d plaintext: %s\n", plaintext);
 
     *decrypted = al_plaintext;
 
@@ -334,27 +331,58 @@ example usage:
 */
 
 void hash_pin(char *pin, char*iv, char **hash_out){
+    char * sep = ";";
     char * data = NULL;
     char * iterator = NULL;
-    if(asprintf(&data, "%s%s%s", iv, ";", pin) == -1){
-      printf("asprintf failed data:hash\n");
-    }
 
-    char obuf[33] = {0};
+    // printf("iv:\n");
+    // print_bytes(iv, 32);
+
+    // printf("pin\n");
+    //  print_bytes(pin, 4);
+
+    data = calloc(1, 32 + 1 + 4);
+    memcpy(data, iv, 32);
+    memcpy(data + 32, sep, 1);
+    memcpy(data + 32 + 1, pin, 4);
+
+    // printf("iv;pin\n");
+    // print_bytes(data, 32 + 1 + 4);
+
+    char obuf[32] = {0};
 
     char *cur_hash;
 
     int z;
-    for(z = 0; z < 7; z++){
-        SHA256(data, strlen(data), obuf);
-        if(asprintf(&cur_hash, "%s", obuf) == -1){
-          printf("asprintf failed curhash:hash_pin\n");
-        }
+
+    SHA256(data, 37, obuf);
+
+    // printf("obuf:\n");
+    // print_bytes(obuf, 32);
+
+    cur_hash = calloc(1,32);
+    memcpy(cur_hash, obuf, 32);
+    iterator = data;
+    data = cur_hash;
+    insane_free(iterator);
+
+    // printf("first hash:\n");
+    // print_bytes(cur_hash, 32);
+
+    for(z = 0; z < 6; z++){
+        SHA256(data, 32, obuf);
+        cur_hash = calloc(1,32);
+        memcpy(cur_hash, obuf, 32);
         iterator = data;
         data = cur_hash;
         insane_free(iterator);
+
+        // printf("hash #%d:\n",z);
+        // print_bytes(cur_hash, 32);
     }
-    asprintf(hash_out, "%s", cur_hash);
+
+
+    *hash_out = cur_hash;
     insane_free(data);
 }
 

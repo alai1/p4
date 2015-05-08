@@ -61,9 +61,9 @@ int main(int argc, char**argv)
         if(strcmp(user_input,"\n") != 0){
             atm_process_command(atm, user_input);
             if(strcmp(atm->cur_user, "") == 0) {
-              printf("%s", prompt);
+              printf("\n%s", prompt);
             } else {
-              printf("ATM (%s): ", atm->cur_user);
+              printf("\nATM (%s): ", atm->cur_user);
             }
             fflush(stdout);
         }

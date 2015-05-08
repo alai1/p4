@@ -58,17 +58,17 @@ ssize_t router_recv(Router *router, char *data, size_t max_len, struct sockaddr_
 
 ssize_t router_sendto_atm(Router *router, char *data, size_t len)
 {
-    printf("router sending to ATM:\n");
-    print_bytes(data, len);
-    printf("\n");
+//     printf("router sending to ATM:\n");
+//     print_bytes(data, len);
+//     printf("\n");
     return sendto(router->sockfd, data, len, 0,
            (struct sockaddr *)&router->atm_addr, sizeof(router->atm_addr));
 }
 
 ssize_t router_sendto_bank(Router *router, char *data, size_t len)
 {
-    printf("router sending to BANK:\n");
-    print_bytes(data, len);
+    // printf("router sending to BANK:\n");
+    // print_bytes(data, len);
     return sendto(router->sockfd, data, len, 0,
            (struct sockaddr *)&router->bank_addr, sizeof(router->bank_addr));
 }

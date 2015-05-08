@@ -40,7 +40,7 @@ if( access( bankFileName, F_OK ) != -1 || access( atmFileName, F_OK ) != -1 ) {
     return 63;
 }
 
- //We're using EVP_aes_256_gcm
+ //We're using EVP_aes_256_cbc
 unsigned char key[32] = "";
 
 if (!RAND_bytes(key, sizeof key)) {

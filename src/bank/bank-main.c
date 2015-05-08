@@ -67,7 +67,7 @@ int main(int argc, char**argv)
        {
            fgets(sendline, 10000,stdin);
            bank_process_local_command(bank, sendline, strlen(sendline));
-           printf("%s", prompt);
+           printf("\n%s", prompt);
            fflush(stdout);
        }
        else if(FD_ISSET(bank->sockfd, &fds))
