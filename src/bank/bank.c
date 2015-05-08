@@ -174,7 +174,8 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
                     int results = fwrite(hash_out, 1, 32, cardFile);
                     if (results == EOF) {
                         printf("Error creating card file for user %s", command_tokens[1]);
-                        //TODO: ROLL BACK CHANGES!
+                        hash_table_del(bank->ht_salts, alocd_user);
+                        hash_table_del(bank->ht_bal, alocd_user);
                     }
                     fclose(cardFile);
                     

@@ -82,7 +82,7 @@ int atm_send_rcv_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** rece
     unsigned char iv[16] = {0};
 
     if (!RAND_bytes(iv, sizeof iv)) {
-        printf("Error creating IV\n");
+        //printf("Error creating IV\n");
     }
 
     // printf("atm sending plaintext: %s\n", msg_in);
@@ -119,9 +119,7 @@ void atm_process_command(ATM *atm, char *command)
 
     if(strcmp("begin-session",command_tokens[0]) == 0){
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1], "^[a-zA-Z]+$") > 0) {
-            ////printf("%s %s\n", command_tokens[0], command_tokens[1]);
 
-            ////printf("about to send and encrypt  %s\n", command);
             char *card_file_name = NULL;
             asprintf(&card_file_name, "%s.card", command_tokens[1]);
 
@@ -151,29 +149,15 @@ void atm_process_command(ATM *atm, char *command)
 
             // printf("reading card_contents:\n");
             // print_bytes(card_contents, length);
-<<<<<<< HEAD
             fclose (cardFile);
-=======
-
->>>>>>> origin/master
 
             insane_free(card_file_name);
                 
             if(strcmp(atm->cur_user, "") != 0) {
                 printf("A user is already logged in\n");
             } else {
-<<<<<<< HEAD
                 recvd_len = atm_send_rcv_encrypted(atm, command, &received_message);
-                verify_and_decrypt_msg(received_message, atm->key, &decrypted_msg);
-=======
-                printf("PIN? ");
-                char pin[5];
-                if(fgets(pin, 5, stdin) != NULL && compare_str_to_regex(pin, "[0-9][0-9][0-9][0-9]")) {
-                    
-
-                    recvd_len = atm_send_rcv_encrypted(atm, command, &received_message);
-                    verify_and_decrypt_msg(received_message, atm->key, &decrypted_msg);
->>>>>>> origin/master
+                verify_and_decrypt_bytes(received_message, atm->key, &decrypted_msg);
 
                 if(strcmp(decrypted_msg, "No such user") == 0) {
                     printf("No such user\n");
@@ -188,7 +172,7 @@ void atm_process_command(ATM *atm, char *command)
                         char *hashed = NULL;
                         hash_pin(pin, received_iv, &hashed);
 
-                        if(memcmp(hashed, card_contents, 32) == 0) {
+                        if(memcmp(hashed+4, card_contents+4, 28) == 0) {
                             printf("Authorized\n");
 
                             char *allocd_cur_user = NULL;
@@ -197,17 +181,10 @@ void atm_process_command(ATM *atm, char *command)
                             atm->cur_user = allocd_cur_user;
                         } else {
                             printf("Not authorized\n");
-<<<<<<< HEAD
                             // printf("hashed:\n");
                             // print_bytes(hashed, 32);
                             // printf("card_contents%d\n");
                             // print_bytes(card_contents, 32);
-=======
-                            printf("hashed:\n");
-                            print_bytes(hashed, 32);
-                            printf("card_contents%d\n");
-                            print_bytes(card_contents, 32);
->>>>>>> origin/master
                         }
 
                         insane_free(decrypted_msg);

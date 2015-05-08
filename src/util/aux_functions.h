@@ -16,6 +16,7 @@ int decrypt_stuff(unsigned char *ciphertext, int ciphertext_len, unsigned char *
 int compose_message(unsigned char *plaintext, int plaintext_len, unsigned char *key,
   unsigned char *iv, unsigned char **composed_message);
 int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, unsigned char **decrypted);
+int verify_and_decrypt_bytes(unsigned char *composed_message, unsigned char *key, unsigned char **decrypted);
 char **str_array_append(char **array, size_t nitems, const char *item, 
                         size_t itemlen);
 void hash_pin(char *pin, char*iv, char **hash_out);

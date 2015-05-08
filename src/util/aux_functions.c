@@ -51,7 +51,7 @@ int compare_str_to_regex(char* str, const char *pattern){
     /* Compile regular expression */
     reti = regcomp(&regex, pattern, REG_EXTENDED);
     if (reti) {
-        // fprintf(stderr, "Could not compile regex\n");
+        printf(stderr, "Could not compile regex\n");
         exit(1);
     }
 
@@ -59,15 +59,15 @@ int compare_str_to_regex(char* str, const char *pattern){
     reti = regexec(&regex, str, 0, NULL, 0);
     if (!reti) {
         return 1;
-        // fprintf(stderr, "Match\n");
+        printf(stderr, "Match\n");
     }
     else if (reti == REG_NOMATCH) {
-        // fprintf(stderr, "%s does not match \n", str);
+        printf(stderr, "%s does not match \n", str);
         return 0;
     }
     else {
         regerror(reti, &regex, msgbuf, sizeof(msgbuf));
-        // fprintf(stderr, "Regex match failed: %s\n", msgbuf);
+        printf(stderr, "Regex match failed: %s\n", msgbuf);
         return 0;
     }
 }
@@ -202,22 +202,22 @@ int compose_message(unsigned char *plaintext, int plaintext_len, unsigned char *
     char * cipher_and_iv = NULL;
     cipher_and_iv = calloc(1, ciphertext_len + 16);
 
-    // printf("ciphertext:\n");
-    // print_bytes(ciphertext, ciphertext_len);
-    // printf("iv:\n");
-    // print_bytes(iv, 16);
+    //printf("ciphertext:\n");
+    //print_bytes(ciphertext, ciphertext_len)
+    //printf("iv:\n");
+    //print_bytes(iv, 16)
 
     memcpy(cipher_and_iv, ciphertext, ciphertext_len);
     memcpy(cipher_and_iv + ciphertext_len, iv, 16);
 
-    // printf("cipher_and_iv:\n");
-    // print_bytes(cipher_and_iv, ciphertext_len + 16);
+    //printf("cipher_and_iv:\n");
+    //print_bytes(cipher_and_iv, ciphertext_len + 16)
 
     HMAC(EVP_sha256(), key, 32, cipher_and_iv, ciphertext_len + 16, hmac, &hmacLen);
 
 
-    // printf("hmac:\n");
-    // print_bytes(hmac, hmacLen);
+    //printf("hmac:\n");
+    //print_bytes(hmac, hmacLen)
 
     /*HMAC(AES_256_CBC(p,k,iv);iv);AES_256_CBC(p,k,iv);iv
     
@@ -236,8 +236,8 @@ int compose_message(unsigned char *plaintext, int plaintext_len, unsigned char *
 
     *composed_message = composed;
 
-    // printf("composed:\n");
-    // print_bytes(composed, composed_len);
+    //printf("composed:\n");
+    //print_bytes(composed, composed_len)
 
     return composed_len;
 
@@ -251,22 +251,19 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
     unsigned char *ciphertext = NULL;
     unsigned char *iv = NULL;
 
-    // printf("about to verify and decrypt:\n");
-    // print_bytes(composed_message, composed_len);
 
     char *curr = composed_message;
 
     memcpy(&expected_hmac_len, curr, sizeof(int));
     curr += sizeof(int);
-    // printf("v&d expected_hmac_len: %d\n", expected_hmac_len);
 
 
     expected_hmac = calloc(1, expected_hmac_len);
     memcpy(expected_hmac, curr, expected_hmac_len);
     curr += expected_hmac_len;
 
-    // printf("v&d expected_hmac:\n");
-    // print_bytes(expected_hmac, expected_hmac_len);
+    //printf("v&d expected_hmac:\n");
+    //print_bytes(expected_hmac, expected_hmac_len)
 
     memcpy(&ciphertext_len, curr, sizeof(int));
     curr += sizeof(int);
@@ -276,14 +273,14 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
     memcpy(ciphertext, curr, ciphertext_len);
     curr += ciphertext_len;
 
-    // printf("v&d ciphertext:\n");
-    // print_bytes(ciphertext, ciphertext_len);
+    //printf("v&d ciphertext:\n");
+    //print_bytes(ciphertext, ciphertext_len)
 
     iv = calloc(1, 16);
     memcpy(iv, curr, 16);
 
-    // printf("v&d iv:\n");
-    // print_bytes(iv, 16);
+    //printf("v&d iv:\n");
+    //print_bytes(iv, 16)
     
     
     char * cipher_and_iv = NULL;
@@ -295,13 +292,13 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
     unsigned char computed_hmac[32] = {0};
     HMAC(EVP_sha256(), key, 32, cipher_and_iv, ciphertext_len + 16, computed_hmac, &hmacLen);
 
-    // printf("v&d computed_hmac:\n");
-    // print_bytes(computed_hmac, hmacLen);
+    //printf("v&d computed_hmac:\n");
+    //print_bytes(computed_hmac, hmacLen)
 
 
 
     if(memcmp(expected_hmac, computed_hmac, 32) != 0){
-        ////printf("verify and decrypt fail! expected %s doesn't match computed_hmac %sfuck!\n", expected_hmac, computed_hmac);
+        //printf("verify and decrypt fail! expected %s doesn't match computed_hmac %sfuck!\n", expected_hmac, computed_hmac);
         return -1;
     }
 
@@ -310,18 +307,94 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
     int plaintext_len = decrypt_stuff(ciphertext, ciphertext_len, key, iv, plaintext);
 
     //printf("plaintext raw\n");
-    //print_bytes(plaintext, 320);
+    //print_bytes(plaintext, 320)
 
     plaintext[plaintext_len] = '\0';
     
     char * al_plaintext = NULL;
     asprintf(&al_plaintext, "%s", plaintext);
 
-    //// printf("v&d plaintext: %s\n", plaintext);
 
     *decrypted = al_plaintext;
 
     return 1;
+}
+
+int verify_and_decrypt_bytes(unsigned char *composed_message, unsigned char *key, unsigned char **decrypted){
+
+    int expected_hmac_len = 0;
+    unsigned char *expected_hmac = NULL;
+    int ciphertext_len = 0;
+    unsigned char *ciphertext = NULL;
+    unsigned char *iv = NULL;
+
+    //printf("about to verify and decrypt:\n");
+
+    char *curr = composed_message;
+
+    memcpy(&expected_hmac_len, curr, sizeof(int));
+    curr += sizeof(int);
+    //printf("v&d expected_hmac_len: %d\n", expected_hmac_len);
+
+
+    expected_hmac = calloc(1, expected_hmac_len);
+    memcpy(expected_hmac, curr, expected_hmac_len);
+    curr += expected_hmac_len;
+
+    //printf("v&d expected_hmac:\n");
+    //print_bytes(expected_hmac, expected_hmac_len)
+
+    memcpy(&ciphertext_len, curr, sizeof(int));
+    curr += sizeof(int);
+
+
+    ciphertext = calloc(1, ciphertext_len);
+    memcpy(ciphertext, curr, ciphertext_len);
+    curr += ciphertext_len;
+
+    //printf("v&d ciphertext:\n");
+    //print_bytes(ciphertext, ciphertext_len)
+
+    iv = calloc(1, 16);
+    memcpy(iv, curr, 16);
+
+    //printf("v&d iv:\n");
+    //print_bytes(iv, 16)
+    
+    
+    char * cipher_and_iv = NULL;
+    cipher_and_iv = calloc(1, ciphertext_len + 16);
+    memcpy(cipher_and_iv, ciphertext, ciphertext_len);
+    memcpy(cipher_and_iv + ciphertext_len, iv, 16);
+
+    int hmacLen;
+    unsigned char computed_hmac[32] = {0};
+    HMAC(EVP_sha256(), key, 32, cipher_and_iv, ciphertext_len + 16, computed_hmac, &hmacLen);
+
+    //printf("v&d computed_hmac:\n");
+    //print_bytes(computed_hmac, hmacLen)
+
+
+
+    if(memcmp(expected_hmac, computed_hmac, 32) != 0){
+        printf("verify and decrypt fail! expected %s doesn't match computed_hmac %sfuck!\n", expected_hmac, computed_hmac);
+        return -1;
+    }
+
+
+    unsigned char plaintext[320] = {0};
+    int plaintext_len = decrypt_stuff(ciphertext, ciphertext_len, key, iv, plaintext);
+
+    //printf("plaintext raw\n");
+    //print_bytes(plaintext, 320)
+    
+    char * al_plaintext = NULL;
+    al_plaintext = calloc(1,plaintext_len);
+    memcpy(al_plaintext, plaintext, plaintext_len);
+
+    *decrypted = al_plaintext;
+
+    return plaintext_len;
 }
 
 /*
@@ -335,19 +408,19 @@ void hash_pin(char *pin, char*iv, char **hash_out){
     char * data = NULL;
     char * iterator = NULL;
 
-    // printf("iv:\n");
-    // print_bytes(iv, 32);
+    //printf("iv:\n");
+    //print_bytes(iv, 32)
 
-    // printf("pin\n");
-    //  print_bytes(pin, 4);
+    //printf("pin\n");
+    //print_bytes(pin, 4)
 
     data = calloc(1, 32 + 1 + 4);
     memcpy(data, iv, 32);
     memcpy(data + 32, sep, 1);
     memcpy(data + 32 + 1, pin, 4);
 
-    // printf("iv;pin\n");
-    // print_bytes(data, 32 + 1 + 4);
+    //printf("iv;pin\n");
+    //print_bytes(data, 32 + 1 + 4)
 
     char obuf[32] = {0};
 
@@ -357,8 +430,8 @@ void hash_pin(char *pin, char*iv, char **hash_out){
 
     SHA256(data, 37, obuf);
 
-    // printf("obuf:\n");
-    // print_bytes(obuf, 32);
+    //printf("obuf:\n");
+    //print_bytes(obuf, 32)
 
     cur_hash = calloc(1,32);
     memcpy(cur_hash, obuf, 32);
@@ -366,8 +439,8 @@ void hash_pin(char *pin, char*iv, char **hash_out){
     data = cur_hash;
     insane_free(iterator);
 
-    // printf("first hash:\n");
-    // print_bytes(cur_hash, 32);
+    //printf("first hash:\n");
+    //print_bytes(cur_hash, 32)
 
     for(z = 0; z < 6; z++){
         SHA256(data, 32, obuf);
@@ -377,8 +450,8 @@ void hash_pin(char *pin, char*iv, char **hash_out){
         data = cur_hash;
         insane_free(iterator);
 
-        // printf("hash #%d:\n",z);
-        // print_bytes(cur_hash, 32);
+        //printf("hash #%d:\n",z);
+        //print_bytes(cur_hash, 32)
     }
 
 
