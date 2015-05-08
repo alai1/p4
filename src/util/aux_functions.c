@@ -309,8 +309,8 @@ int verify_and_decrypt_msg(unsigned char *composed_message, unsigned char *key, 
     unsigned char plaintext[320] = {0};
     int plaintext_len = decrypt_stuff(ciphertext, ciphertext_len, key, iv, plaintext);
 
-    printf("plaintext raw\n");
-    print_bytes(plaintext, 320);
+    //printf("plaintext raw\n");
+    //print_bytes(plaintext, 320);
 
     plaintext[plaintext_len] = '\0';
     
@@ -335,19 +335,19 @@ void hash_pin(char *pin, char*iv, char **hash_out){
     char * data = NULL;
     char * iterator = NULL;
 
-    printf("iv:\n");
-    print_bytes(iv, 32);
+    // printf("iv:\n");
+    // print_bytes(iv, 32);
 
-    printf("pin\n");
-    print_bytes(pin, 4);
+    // printf("pin\n");
+    //  print_bytes(pin, 4);
 
     data = calloc(1, 32 + 1 + 4);
     memcpy(data, iv, 32);
     memcpy(data + 32, sep, 1);
     memcpy(data + 32 + 1, pin, 4);
 
-    printf("iv;pin\n");
-    print_bytes(data, 32 + 1 + 4);
+    // printf("iv;pin\n");
+    // print_bytes(data, 32 + 1 + 4);
 
     char obuf[32] = {0};
 
@@ -357,8 +357,8 @@ void hash_pin(char *pin, char*iv, char **hash_out){
 
     SHA256(data, 37, obuf);
 
-    printf("obuf:\n");
-    print_bytes(obuf, 32);
+    // printf("obuf:\n");
+    // print_bytes(obuf, 32);
 
     cur_hash = calloc(1,32);
     memcpy(cur_hash, obuf, 32);
@@ -366,8 +366,8 @@ void hash_pin(char *pin, char*iv, char **hash_out){
     data = cur_hash;
     insane_free(iterator);
 
-    printf("first hash:\n");
-    print_bytes(cur_hash, 32);
+    // printf("first hash:\n");
+    // print_bytes(cur_hash, 32);
 
     for(z = 0; z < 6; z++){
         SHA256(data, 32, obuf);
@@ -377,8 +377,8 @@ void hash_pin(char *pin, char*iv, char **hash_out){
         data = cur_hash;
         insane_free(iterator);
 
-        printf("hash #%d:\n",z);
-        print_bytes(cur_hash, 32);
+        // printf("hash #%d:\n",z);
+        // print_bytes(cur_hash, 32);
     }
 
 

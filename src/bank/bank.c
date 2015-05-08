@@ -160,15 +160,12 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
 
                     hash_table_add(bank->ht_salts, alocd_user, alocd_iv);
 
-                    printf("stored iv%s\n", hash_table_find(bank->ht_salts, command_tokens[1]));
-                    print_bytes(hash_table_find(bank->ht_salts, command_tokens[1]), 32);
 
-                    //printf("calc hash\n");
                     char *hash_out = NULL;
                     hash_pin(command_tokens[2],alocd_iv,&hash_out);
                     
-                    printf("final hash:\n");
-                    print_bytes(hash_out, 32);
+                    // printf("final hash:\n");
+                    // print_bytes(hash_out, 32);
 
                     char * card_file_name = NULL;
                     asprintf(&card_file_name, "%s%s", command_tokens[1], ".card");
@@ -326,15 +323,12 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
 
                     hash_table_del(bank->ht_bal, command_tokens[1]);
                     hash_table_add(bank->ht_bal, alocd_user, alocd_bal);
-                    printf("h\n");
                     asprintf(&bal_to_send, "$%d dispensed", amt);
-                    printf("h2\n");
                 }
             }
         } else {
             asprintf(&bal_to_send, "Usage: withdraw <amt>");
         }
-        printf("i\n");
         bank_respond_encrypted(bank, bal_to_send);
     } else if(strcmp("balance",command_tokens[0]) == 0){
         char *bal_to_send = NULL;
@@ -357,8 +351,6 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
             } else {
                 //MIGHT NOT WANT TO TREAT IV AS STRING
                 char * iv_to_send = hash_table_find(bank->ht_salts, command_tokens[1]);
-                printf("sending iv:\n");
-                print_bytes(iv_to_send, 32);
 
                 bank_respond_encrypted_bytes(bank, iv_to_send, 32);
             }

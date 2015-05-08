@@ -85,7 +85,7 @@ int atm_send_rcv_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** rece
         printf("Error creating IV\n");
     }
 
-    printf("atm sending plaintext: %s\n", msg_in);
+    // printf("atm sending plaintext: %s\n", msg_in);
     composed_message_len = compose_message(msg_in, strlen(msg_in), atm->key, iv, &composed_message);
 
     atm_send(atm, composed_message, composed_message_len);
@@ -116,7 +116,6 @@ void atm_process_command(ATM *atm, char *command)
     
     numArgs = tokenize_command(copy_of_command, &command_tokens);
 
-    printf("split args\n");
 
     if(strcmp("begin-session",command_tokens[0]) == 0){
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
@@ -151,8 +150,8 @@ void atm_process_command(ATM *atm, char *command)
                 return;
             }
 
-            printf("reading card_contents:\n");
-            print_bytes(card_contents, length);
+            // printf("reading card_contents:\n");
+            // print_bytes(card_contents, length);
 
 
             insane_free(card_file_name);
@@ -173,8 +172,6 @@ void atm_process_command(ATM *atm, char *command)
                     } else {
                         unsigned char* received_iv = decrypted_msg;
 
-                        printf("received iv:\n");
-                        print_bytes(received_iv, 32);
 
                         char *hashed = NULL;
                         hash_pin(pin, received_iv, &hashed);
