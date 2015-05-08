@@ -74,7 +74,7 @@ ssize_t atm_recv(ATM *atm, char *data, size_t max_data_len)
 int atm_send_rcv_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** received)
 {
     char recvline[10000];
-    int n;
+    int n = 0;
     int composed_message_len = 0;
 
     unsigned char* composed_message;
@@ -173,6 +173,9 @@ void atm_process_command(ATM *atm, char *command)
                     } else {
                         unsigned char* received_iv = decrypted_msg;
 
+                        printf("received iv:\n");
+                        print_bytes(received_iv, 32);
+
                         char *hashed = NULL;
                         hash_pin(pin, received_iv, &hashed);
 
@@ -191,7 +194,6 @@ void atm_process_command(ATM *atm, char *command)
                             print_bytes(card_contents, 32);
                         }
 
-                        insane_free(hashed);
                         insane_free(decrypted_msg);
                     }
 

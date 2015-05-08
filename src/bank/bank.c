@@ -83,17 +83,16 @@ void bank_respond_encrypted(Bank *bank, unsigned char* msg_in)
     unsigned char iv[16] = {0};
 
     if (!RAND_bytes(iv, sizeof iv)) {
-        printf("Error creating IV\n");
+        //printf("Error creating IV\n");
     }
 
-    printf("bank sending plaintext: %s\n", msg_in);
     composed_message_len = compose_message(msg_in, strlen(msg_in), bank->key, iv, &composed_message);
 
     bank_send(bank, composed_message, composed_message_len);
 
 }
 
-int bank_send_rcv_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** received)
+void bank_respond_encrypted_bytes(Bank *bank, unsigned char* msg_in, int n_bytes)
 {
     char recvline[10000];
     int n;
@@ -104,20 +103,15 @@ int bank_send_rcv_encrypted(ATM *atm, unsigned char* msg_in, unsigned char** rec
     unsigned char iv[16] = {0};
 
     if (!RAND_bytes(iv, sizeof iv)) {
-        printf("Error creating IV\n");
+        //printf("Error creating IV\n");
     }
 
-    printf("bank sending plaintext: %s\n", msg_in);
-    composed_message_len = compose_message(msg_in, strlen(msg_in), bank->key, iv, &composed_message);
+    composed_message_len = compose_message(msg_in, n_bytes, bank->key, iv, &composed_message);
 
     bank_send(bank, composed_message, composed_message_len);
 
-    n = bank_recv(bank,recvline,10000);
-
-    *received = recvline;
-    return n;
-
 }
+
 
 
 void bank_process_local_command(Bank *bank, char *command, size_t len)
@@ -156,19 +150,25 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
                     unsigned char iv[32] = {0};
 
                     if (!RAND_bytes(iv, sizeof iv)) {
-                        printf("Error creating IV\n");
+                        //printf("Error creating IV\n");
                     }
 
-                    char * alocd_iv = NULL;
-                    asprintf(&alocd_iv, "%s", iv);
 
-                    hash_table_add(bank->ht_salts, command_tokens[1], alocd_iv);
+                    char * alocd_iv = NULL;
+                    alocd_iv = calloc(1, 32);
+                    memcpy(alocd_iv, iv, 32);
+
+                    hash_table_add(bank->ht_salts, alocd_user, alocd_iv);
+
+                    printf("stored iv%s\n", hash_table_find(bank->ht_salts, command_tokens[1]));
+                    print_bytes(hash_table_find(bank->ht_salts, command_tokens[1]), 32);
 
                     //printf("calc hash\n");
                     char *hash_out = NULL;
                     hash_pin(command_tokens[2],alocd_iv,&hash_out);
                     
-                    //printf("final hash: %s\n", hash_out);
+                    printf("final hash:\n");
+                    print_bytes(hash_out, 32);
 
                     char * card_file_name = NULL;
                     asprintf(&card_file_name, "%s%s", command_tokens[1], ".card");
@@ -176,14 +176,13 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
                     FILE *cardFile;
                     cardFile = fopen(card_file_name, "w");
 
-                    int results = fputs(hash_out, cardFile);
+                    int results = fwrite(hash_out, 1, 32, cardFile);
                     if (results == EOF) {
                         printf("Error creating card file for user %s", command_tokens[1]);
                         //TODO: ROLL BACK CHANGES!
                     }
                     fclose(cardFile);
                     
-                    insane_free(hash_out);
                     insane_free(card_file_name);
 
                     printf("Created user %s\n", command_tokens[1]);
@@ -223,6 +222,8 @@ void bank_process_local_command(Bank *bank, char *command, size_t len)
                 }
 
             }
+        } else {
+            printf("Usage: deposit <user-name>\n");
         }
     } else if(strcmp("balance", command_tokens[0])== 0) {
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1], "[a-zA-Z]+") > 0) {
@@ -273,27 +274,23 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
 
     // TODO: Implement the bank side of the ATM-bank protocol
 
-	/*
-	 * The following is a toy example that simply receives a
-	 * string from the ATM, prepends "Bank got: " and echoes 
-	 * it back to the ATM before printing it to stdout.
-	 */
+    /*
+     * The following is a toy example that simply receives a
+     * string from the ATM, prepends "Bank got: " and echoes 
+     * it back to the ATM before printing it to stdout.
+     */
 
     unsigned char* received_message = NULL;
     unsigned char* decrypted_msg = NULL;
 
-    printf("encrypted command:\n");
-    print_bytes(command, len);
-
     if(verify_and_decrypt_msg(command, bank->key, &decrypted_msg) == 1){
         //printf("received:%s(len: %d)\ndecrypted successfully:%s\n", command, strlen(command), decrypted_msg);
     } else {
-        printf("couldn't decrypt:%s (len: %d)\n", command, strlen(command));
-        bank_respond_encrypted(bank, "null decrypted message");
-        return;
+        //printf("couldn't decrypt:%s (len: %d)\n", command, strlen(command));
+        //bank_respond_encrypted(bank, "null decrypted message");
+        //return;
     }
-	
-    printf("bank received dmsg: %s\n", decrypted_msg);
+    
 
     strtok(decrypted_msg, "\n");
 
@@ -304,8 +301,6 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
     char **command_tokens = {0};
     int numArgs = 0;
     numArgs = tokenize_command(copy_of_dmsg, &command_tokens);
-
-    printf("command_tokens[0]: %s\n", command_tokens[0]);
 
     if(strcmp("withdraw",command_tokens[0]) == 0){
         char *bal_to_send = NULL;
@@ -355,22 +350,23 @@ void bank_process_remote_command(Bank *bank, char *command, size_t len)
         } else {
             asprintf(&bal_to_send, "Usage: balance <user-name>");
         }
-        bank_respond_encrypted(bank, bal_to_send);
     } else if(strcmp("begin-session",command_tokens[0]) == 0){
         if(numArgs == 2 && compare_str_to_regex(command_tokens[1],"[a-zA-Z]+") > 0) {
             if(hash_table_find(bank->ht_bal, command_tokens[1]) == NULL){
-                bank_respond_encrypted(bank, "No such user\n");
+            bank_respond_encrypted(bank, "No such user\n");
             } else {
                 //MIGHT NOT WANT TO TREAT IV AS STRING
-                char * iv_to_send = NULL;
-                asprintf(&iv_to_send, "%s", hash_table_find(bank->ht_salts,command_tokens[1]));
-                bank_respond_encrypted(bank, iv_to_send);
+                char * iv_to_send = hash_table_find(bank->ht_salts, command_tokens[1]);
+                printf("sending iv:\n");
+                print_bytes(iv_to_send, 32);
+
+                bank_respond_encrypted_bytes(bank, iv_to_send, 32);
             }
         } else {
             printf("Usage: balance <user-name>\n");
         }
     } else{
-        printf("Invalid command\n");
+        printf("Invalid command \n");
         bank_respond_encrypted(bank, "invalid");
         dprint("Invalid command: %s", decrypted_msg);
     }
